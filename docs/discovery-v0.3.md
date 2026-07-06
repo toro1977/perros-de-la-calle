@@ -1,5 +1,5 @@
 Perros de la calle — Discovery del MVP
-Versión 0.2 · Documento vivo · Decisiones clave del MVP cerradas
+Versión 0.3 · Discovery cerrado · Listo para modelo de datos y arquitectura
 
 
 
@@ -59,10 +59,10 @@ Persona 4 — Adoptante
 
 4. MODELO DE NEGOCIO
    • Donaciones a refugios/rescatistas dados de alta y verificados en la app, procesadas vía MercadoPago.
-   • La app retiene una comisión sobre cada donación (% a definir); el resto se liquida al refugio.
+   • La app retiene una comisión del 5% sobre cada donación (cubre el costo de procesamiento de MercadoPago sin generar fricción con donantes/refugios); el resto se liquida al refugio.
    • Alianzas con veterinarias y refugios (posible convenio, visibilidad, u otro beneficio a definir).
    • No se cobra a dueños ni a quienes encuentran perros — publicar y buscar avisos es gratis.
-   • Pendiente definir: % de comisión exacto, y mecánica de liquidación al refugio (¿diaria, semanal? — ver el precedente de Doggers, que liquida manual en v1 por ADR-009).
+   • Pendiente definir: mecánica exacta de liquidación al refugio (¿diaria, semanal? — ver el precedente de Doggers, que liquida manual en v1 por ADR-009).
 
 
 
@@ -73,6 +73,7 @@ Persona 4 — Adoptante
 Verificación de refugios/rescatistas
    • Revisión manual, mismo patrón que la verificación de paseadores en Doggers.
    • El refugio se registra y sube datos de respaldo (CUIT/personería si tiene, fotos, redes sociales); el founder/equipo aprueba antes de habilitarlo para publicar en adopción o recibir donaciones.
+   • Sin SLA de revisión definido por ahora — se revisa a medida que entran solicitudes.
 
 
 Moderación de avisos (perdido/encontrado/callejero)
@@ -82,11 +83,13 @@ Moderación de avisos (perdido/encontrado/callejero)
 
 Donaciones
    • Procesadas en la app vía MercadoPago.
-   • La plataforma retiene una comisión (monto a definir); el resto se liquida al refugio verificado.
+   • La plataforma retiene el 5% de comisión; el resto se liquida al refugio verificado.
 
 
 Matching entre avisos de "perdido" y "encontrado"
-   • Híbrido: el sistema sugiere posibles matches automáticamente por cercanía geográfica y proximidad de fechas, notificando por push a ambas partes.
+   • Híbrido: el sistema sugiere posibles matches automáticamente por cercanía geográfica y notifica por push a ambas partes.
+   • Radio de búsqueda ajustable por el usuario (no fijo del sistema) — similar a un slider de distancia estilo apps de citas.
+   • Sin límite de fecha: cualquier aviso activo se considera para las sugerencias, sin importar cuánto tiempo pasó.
    • El contacto y la confirmación final del match son manuales entre las partes (no hay resolución automática "dura").
 
 
@@ -97,21 +100,18 @@ Matching entre avisos de "perdido" y "encontrado"
    Incluido en v1:
    • Publicar y buscar avisos de perdido/encontrado (foto, ubicación, contacto).
    • Publicar perros callejeros rescatados en adopción (refugios/rescatistas verificados).
-   • Donaciones a refugios vía MercadoPago, con comisión de plataforma.
-   • Sugerencias automáticas de match perdido↔encontrado por cercanía/fecha + confirmación manual.
-   • Cola de verificación manual de refugios (equivalente a la de paseadores en Doggers).
+   • Donaciones a refugios vía MercadoPago, con 5% de comisión de plataforma.
+   • Sugerencias automáticas de match perdido↔encontrado con radio ajustable por el usuario, sin límite de fecha, + confirmación manual.
+   • Cola de verificación manual de refugios (equivalente a la de paseadores en Doggers), sin SLA fijo en v1.
    • Reporte comunitario de avisos falsos/duplicados.
 
 
-   Pendiente de definir (no bloquea el arranque del desarrollo, pero hay que resolverlo antes de cerrar el MVP):
-   • % de comisión sobre donaciones y mecánica de liquidación al refugio.
-   • Criterios exactos de aprobación en la cola de verificación de refugios (qué documentación se pide, SLA de revisión).
-   • Umbral/lógica exacta de las sugerencias de match (radio geográfico, ventana de fechas).
+   Pendiente de definir (no bloquea el arranque del desarrollo, se resuelve en la etapa de arquitectura/construcción):
+   • Mecánica exacta de liquidación de donaciones al refugio (diaria, semanal, manual como Doggers).
 
 
 
 
 7. PRÓXIMOS PASOS
    • Definir modelo de datos (entidades: avisos, refugios, donaciones, usuarios, reportes).
-   • Cerrar los 3 puntos pendientes de la sección 6 antes de arrancar arquitectura técnica.
-   • Recién después, arrancar arquitectura técnica (equivalente a arquitectura-v0.1.md de Doggers) y roadmap de épicas.
+   • Arrancar arquitectura técnica (equivalente a arquitectura-v0.1.md de Doggers) y roadmap de épicas.
