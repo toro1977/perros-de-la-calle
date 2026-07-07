@@ -633,6 +633,19 @@ export type Database = {
             }
             Returns: string
           }
+      create_dog_post: {
+        Args: {
+          p_breed?: string
+          p_description?: string
+          p_event_date: string
+          p_lat: number
+          p_lng: number
+          p_photo_url: string
+          p_type: string
+          p_zone_text: string
+        }
+        Returns: string
+      }
       disablelongtransactions: { Args: never; Returns: string }
       dropgeometrycolumn:
         | {
@@ -764,7 +777,42 @@ export type Database = {
         Returns: boolean
       }
       geomfromewkt: { Args: { "": string }; Returns: unknown }
+      get_dog_post: {
+        Args: { p_id: string }
+        Returns: {
+          breed: string
+          created_at: string
+          description: string
+          event_date: string
+          id: string
+          lat: number
+          lng: number
+          photo_url: string
+          status: string
+          type: string
+          user_id: string
+          zone_text: string
+        }[]
+      }
       gettransactionid: { Args: never; Returns: unknown }
+      list_dog_posts: {
+        Args: { p_lat?: number; p_lng?: number; p_type?: string }
+        Returns: {
+          breed: string
+          created_at: string
+          description: string
+          distance_km: number
+          event_date: string
+          id: string
+          lat: number
+          lng: number
+          photo_url: string
+          status: string
+          type: string
+          user_id: string
+          zone_text: string
+        }[]
+      }
       longtransactionsenabled: { Args: never; Returns: boolean }
       populate_geometry_columns:
         | { Args: { tbl_oid: unknown; use_typmod?: boolean }; Returns: number }

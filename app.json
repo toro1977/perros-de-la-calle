@@ -32,6 +32,19 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Usamos tu ubicación para mostrar avisos cercanos y ubicar el aviso que publicás."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Usamos tu galería para elegir la foto del perro.",
+          "cameraPermission": "Usamos la cámara para sacarle una foto al perro."
+        }
       ]
     ],
     "experiments": {
