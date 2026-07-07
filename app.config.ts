@@ -11,11 +11,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   userInterfaceStyle: 'automatic',
   ios: {
     icon: './assets/expo.icon',
+    bundleIdentifier: 'com.perrosdelacalle.app',
     config: {
       googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY,
     },
   },
   android: {
+    package: 'com.perrosdelacalle.app',
     adaptiveIcon: {
       backgroundColor: '#E6F4FE',
       foregroundImage: './assets/images/android-icon-foreground.png',
