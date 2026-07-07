@@ -3,6 +3,7 @@ import { Image } from 'expo-image';
 import { Link, useFocusEffect } from 'expo-router';
 import { FlatList, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MapPostsView } from '@/components/map-posts-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, MaxContentWidth } from '@/constants/theme';
@@ -32,6 +33,7 @@ export default function PostsListScreen() {
   const isLoading = useDogPostsStore(s => s.isLoading);
   const [filter, setFilter] = useState<DogPostType | undefined>(undefined);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
 
   useEffect(() => {
     getCurrentLocation().then(loc => {
@@ -71,9 +73,14 @@ export default function PostsListScreen() {
           <ThemedText type="title" style={styles.title}>
             Perros de la calle
           </ThemedText>
-          <Pressable onPress={signOut}>
-            <ThemedText type="link">Salir</ThemedText>
-          </Pressable>
+          <ThemedView style={styles.headerActions}>
+            <Pressable onPress={() => setViewMode(m => (m === 'list' ? 'map' : 'list'))}>
+              <ThemedText type="link">{viewMode === 'list' ? 'Ver mapa' : 'Ver lista'}</ThemedText>
+            </Pressable>
+            <Pressable onPress={signOut}>
+              <ThemedText type="link">Salir</ThemedText>
+            </Pressable>
+          </ThemedView>
         </ThemedView>
 
         <ThemedView style={styles.filters}>
@@ -88,19 +95,23 @@ export default function PostsListScreen() {
           ))}
         </ThemedView>
 
-        <FlatList
-          data={posts}
-          keyExtractor={item => item.id}
-          renderItem={renderItem}
-          onRefresh={reload}
-          refreshing={isLoading}
-          contentContainerStyle={styles.listContent}
-          ListEmptyComponent={
-            <ThemedText type="default" style={styles.empty}>
-              {isLoading ? 'Cargando...' : 'No hay avisos por acá todavía.'}
-            </ThemedText>
-          }
-        />
+        {viewMode === 'list' ? (
+          <FlatList
+            data={posts}
+            keyExtractor={item => item.id}
+            renderItem={renderItem}
+            onRefresh={reload}
+            refreshing={isLoading}
+            contentContainerStyle={styles.listContent}
+            ListEmptyComponent={
+              <ThemedText type="default" style={styles.empty}>
+                {isLoading ? 'Cargando...' : 'No hay avisos por acá todavía.'}
+              </ThemedText>
+            }
+          />
+        ) : (
+          <MapPostsView posts={posts} center={coords} />
+        )}
 
         <Link href="/new-post" asChild>
           <Pressable style={styles.fab}>
@@ -136,6 +147,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: Spacing.three,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: Spacing.three,
   },
   title: {
     fontSize: 24,
