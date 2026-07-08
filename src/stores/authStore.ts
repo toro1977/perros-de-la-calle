@@ -26,6 +26,12 @@ type AuthActions = {
 // session appears with no matching profile yet. full_name/role travel in
 // the auth user's metadata (set at signUp) so this works whether the
 // session appears immediately or later, after email confirmation.
+//
+// signIn/signUp call this directly AND onAuthStateChange's SIGNED_IN
+// listener calls it again for the same session — both can race on the
+// same first-login. upsert + ignoreDuplicates makes that race harmless
+// (the loser's insert becomes a no-op instead of a unique-violation
+// error) instead of trying to dedupe the two call sites.
 async function ensureProfile(session: Session) {
   const { data: existing } = await supabase
     .from('users')
@@ -37,19 +43,23 @@ async function ensureProfile(session: Session) {
   const fullName = (session.user.user_metadata.full_name as string | undefined) ?? '';
   const role = (session.user.user_metadata.role as UserRole | undefined) ?? 'individual';
 
-  const { error: userError } = await supabase.from('users').insert({
-    id: session.user.id,
-    email: session.user.email!,
-    full_name: fullName,
-    role,
-  });
+  const { error: userError } = await supabase
+    .from('users')
+    .upsert(
+      {
+        id: session.user.id,
+        email: session.user.email!,
+        full_name: fullName,
+        role,
+      },
+      { onConflict: 'id', ignoreDuplicates: true }
+    );
   if (userError) throw userError;
 
   if (role === 'shelter') {
-    const { error: shelterError } = await supabase.from('shelters').insert({
-      id: session.user.id,
-      shelter_name: fullName,
-    });
+    const { error: shelterError } = await supabase
+      .from('shelters')
+      .upsert({ id: session.user.id, shelter_name: fullName }, { onConflict: 'id', ignoreDuplicates: true });
     if (shelterError) throw shelterError;
   }
 }

@@ -127,8 +127,10 @@ export default function RegisterScreen() {
 
           <Button label="Crear cuenta" onPress={handleSubmit} loading={isLoading} />
 
+          {/* Link asChild clones this Pressable — keep its style flat, never an
+              array (see StyleSheet.flatten note in themed-view.tsx). */}
           <Link href="/(auth)/login" asChild>
-            <Pressable style={styles.loginLink}>
+            <Pressable style={StyleSheet.flatten([styles.loginLink])}>
               <ThemedText type="default" themeColor="textSecondary">
                 ¿Ya tenés cuenta?{' '}
               </ThemedText>

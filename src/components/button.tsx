@@ -22,6 +22,9 @@ export function Button({ label, variant = 'primary', loading, icon, disabled, ..
   const borderColor = variant === 'ghost' ? theme.border : 'transparent';
 
   return (
+    // Button is sometimes rendered as the direct child of <Link asChild>
+    // (e.g. register.tsx) — style must stay flat, never an array. See the
+    // StyleSheet.flatten note in themed-view.tsx.
     <Pressable
       disabled={isDisabled}
       style={({ pressed }) =>

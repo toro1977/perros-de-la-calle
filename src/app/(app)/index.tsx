@@ -7,18 +7,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MapPostsView } from '@/components/map-posts-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { DOG_POST_TYPE_META } from '@/constants/dog-post-types';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { getCurrentLocation } from '@/services/location';
 import { useAuthStore } from '@/stores/authStore';
 import { DogPostListItem, useDogPostsStore } from '@/stores/dogPostsStore';
 import { DogPostType } from '@/types/database.types';
-
-const TYPE_META: Record<DogPostType, { label: string; icon: keyof typeof Ionicons.glyphMap; tone: 'danger' | 'success' | 'warning' }> = {
-  lost: { label: 'Perdido', icon: 'help-buoy-outline', tone: 'danger' },
-  found: { label: 'Encontrado', icon: 'checkmark-circle-outline', tone: 'success' },
-  stray: { label: 'Callejero', icon: 'paw-outline', tone: 'warning' },
-};
 
 const FILTERS: { label: string; value: DogPostType | undefined; icon: keyof typeof Ionicons.glyphMap }[] = [
   { label: 'Todos', value: undefined, icon: 'apps-outline' },
@@ -51,7 +46,7 @@ export default function PostsListScreen() {
   useFocusEffect(reload);
 
   function renderItem({ item }: { item: DogPostListItem }) {
-    const meta = TYPE_META[item.type as DogPostType];
+    const meta = DOG_POST_TYPE_META[item.type as DogPostType];
     const toneColor = theme[meta.tone];
     const toneSoft = theme[`${meta.tone}Soft` as const];
     return (

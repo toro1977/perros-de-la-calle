@@ -7,17 +7,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '@/components/button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { DOG_POST_TYPE_META } from '@/constants/dog-post-types';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuthStore } from '@/stores/authStore';
 import { DogPostDetail, useDogPostsStore } from '@/stores/dogPostsStore';
 import { DogPostType } from '@/types/database.types';
-
-const TYPE_META: Record<DogPostType, { label: string; icon: keyof typeof Ionicons.glyphMap; tone: 'danger' | 'success' | 'warning' }> = {
-  lost: { label: 'Perdido', icon: 'help-buoy-outline', tone: 'danger' },
-  found: { label: 'Encontrado', icon: 'checkmark-circle-outline', tone: 'success' },
-  stray: { label: 'Callejero', icon: 'paw-outline', tone: 'warning' },
-};
 
 export default function PostDetailScreen() {
   const theme = useTheme();
@@ -56,7 +51,7 @@ export default function PostDetailScreen() {
   }
 
   const isOwner = profile?.id === post.user_id;
-  const meta = TYPE_META[post.type as DogPostType];
+  const meta = DOG_POST_TYPE_META[post.type as DogPostType];
   const toneColor = theme[meta.tone];
   const toneSoft = theme[`${meta.tone}Soft` as const];
 

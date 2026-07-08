@@ -18,6 +18,7 @@ type DogPostsActions = {
     userId: string;
     type: DogPostType;
     photoUri: string;
+    photoMimeType: string | null;
     lat: number;
     lng: number;
     zoneText: string;
@@ -53,10 +54,10 @@ export const useDogPostsStore = create<DogPostsState & DogPostsActions>((set, ge
     return data?.[0] ?? null;
   },
 
-  createPost: async ({ userId, type, photoUri, lat, lng, zoneText, eventDate, breed, description }) => {
+  createPost: async ({ userId, type, photoUri, photoMimeType, lat, lng, zoneText, eventDate, breed, description }) => {
     set({ isLoading: true });
     try {
-      const photoUrl = await uploadDogPhoto(userId, photoUri);
+      const photoUrl = await uploadDogPhoto(userId, photoUri, photoMimeType);
       const { error } = await supabase.rpc('create_dog_post', {
         p_type: type,
         p_photo_url: photoUrl,

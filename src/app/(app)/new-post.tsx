@@ -11,7 +11,7 @@ import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { getCurrentLocation } from '@/services/location';
-import { pickPhoto } from '@/services/photoPicker';
+import { PickedPhoto, pickPhoto } from '@/services/photoPicker';
 import { useAuthStore } from '@/stores/authStore';
 import { useDogPostsStore } from '@/stores/dogPostsStore';
 import { DogPostType } from '@/types/database.types';
@@ -29,39 +29,51 @@ export default function NewPostScreen() {
   const isLoading = useDogPostsStore(s => s.isLoading);
 
   const [type, setType] = useState<DogPostType>('lost');
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [photo, setPhoto] = useState<PickedPhoto | null>(null);
   const [breed, setBreed] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   async function handlePickPhoto() {
-    const uri = await pickPhoto();
-    if (uri) setPhotoUri(uri);
+    const picked = await pickPhoto();
+    if (picked) setPhoto(picked);
   }
 
   async function handleSubmit() {
     if (!profile) return;
-    if (!photoUri) {
+    if (!photo) {
       setError('Falta una foto del perro.');
       return;
     }
     setError(null);
 
-    const location = await getCurrentLocation();
+    let location;
+    try {
+      location = await getCurrentLocation();
+    } catch {
+      setError('No pudimos obtener tu ubicación.');
+      return;
+    }
     if (!location) {
       setError('No pudimos obtener tu ubicación.');
       return;
     }
 
     try {
+      const now = new Date();
+      // Local calendar date, not UTC — toISOString() would push an evening
+      // post in Argentina (UTC-3) into the next day.
+      const eventDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
       await createPost({
         userId: profile.id,
         type,
-        photoUri,
+        photoUri: photo.uri,
+        photoMimeType: photo.mimeType,
         lat: location.lat,
         lng: location.lng,
         zoneText: location.zoneText,
-        eventDate: new Date().toISOString().slice(0, 10),
+        eventDate,
         breed: breed.trim() || null,
         description: description.trim() || null,
       });
@@ -110,8 +122,8 @@ export default function NewPostScreen() {
             style={[styles.photoPicker, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
             onPress={handlePickPhoto}
           >
-            {photoUri ? (
-              <Image source={{ uri: photoUri }} style={styles.photoPreview} contentFit="cover" />
+            {photo ? (
+              <Image source={{ uri: photo.uri }} style={styles.photoPreview} contentFit="cover" />
             ) : (
               <ThemedView style={styles.photoPlaceholder}>
                 <Ionicons name="camera-outline" size={28} color={theme.textSecondary} />
@@ -148,7 +160,7 @@ export default function NewPostScreen() {
             </ThemedView>
           )}
 
-          <Button label="Publicar" onPress={handleSubmit} loading={isLoading} disabled={!photoUri} />
+          <Button label="Publicar" onPress={handleSubmit} loading={isLoading} disabled={!photo} />
         </ScrollView>
       </SafeAreaView>
     </ThemedView>

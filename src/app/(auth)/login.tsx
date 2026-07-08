@@ -69,8 +69,10 @@ export default function LoginScreen() {
 
           <Button label="Ingresar" onPress={handleSubmit} loading={isLoading} />
 
+          {/* Link asChild clones this Pressable — keep its style flat, never an
+              array (see StyleSheet.flatten note in themed-view.tsx). */}
           <Link href="/(auth)/register" asChild>
-            <Pressable style={styles.registerLink}>
+            <Pressable style={StyleSheet.flatten([styles.registerLink])}>
               <ThemedText type="default" themeColor="textSecondary">
                 ¿No tenés cuenta?{' '}
               </ThemedText>
