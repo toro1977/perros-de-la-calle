@@ -1,9 +1,34 @@
 import { useEffect } from 'react';
 import { DarkTheme, DefaultTheme, Slot, SplashScreen, ThemeProvider, useRouter, useSegments } from 'expo-router';
 import { useColorScheme } from 'react-native';
+import { Colors } from '@/constants/theme';
 import { useAuthStore } from '@/stores/authStore';
 
 SplashScreen.preventAutoHideAsync();
+
+const LightNavTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: Colors.light.accent,
+    background: Colors.light.background,
+    card: Colors.light.background,
+    text: Colors.light.text,
+    border: Colors.light.border,
+  },
+};
+
+const DarkNavTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    primary: Colors.dark.accent,
+    background: Colors.dark.background,
+    card: Colors.dark.background,
+    text: Colors.dark.text,
+    border: Colors.dark.border,
+  },
+};
 
 function NavigationGuard() {
   const session = useAuthStore(s => s.session);
@@ -33,7 +58,7 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={colorScheme === 'dark' ? DarkNavTheme : LightNavTheme}>
       {isInitialized && <NavigationGuard />}
       <Slot />
     </ThemeProvider>

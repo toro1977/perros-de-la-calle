@@ -1,14 +1,24 @@
 import { useState } from 'react';
-import { Link } from 'expo-router';
-import { Pressable, StyleSheet, TextInput } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Link, router } from 'expo-router';
+import { Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Button } from '@/components/button';
+import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing, MaxContentWidth } from '@/constants/theme';
+import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { useAuthStore } from '@/stores/authStore';
 import { UserRole } from '@/types/database.types';
 
+const ROLES: { value: UserRole; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { value: 'individual', label: 'Persona', icon: 'person-outline' },
+  { value: 'shelter', label: 'Refugio / rescatista', icon: 'home-outline' },
+];
+
 export default function RegisterScreen() {
+  const theme = useTheme();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -30,19 +40,18 @@ export default function RegisterScreen() {
   if (confirmEmailPending) {
     return (
       <ThemedView style={styles.container}>
-        <SafeAreaView style={styles.safeArea}>
-          <ThemedText type="subtitle" style={styles.subtitle}>
+        <SafeAreaView style={styles.safeAreaCentered}>
+          <ThemedView style={[styles.confirmIcon, { backgroundColor: theme.accentSoft }]}>
+            <Ionicons name="mail-outline" size={32} color={theme.accent} />
+          </ThemedView>
+          <ThemedText type="subtitle" style={styles.centerText}>
             Confirmá tu email
           </ThemedText>
-          <ThemedText type="default" style={styles.subtitle}>
+          <ThemedText type="default" themeColor="textSecondary" style={styles.centerText}>
             Te enviamos un link de confirmación a {email}. Abrilo y después volvé a iniciar sesión.
           </ThemedText>
           <Link href="/(auth)/login" asChild>
-            <Pressable style={styles.button}>
-              <ThemedText type="default" style={styles.buttonText}>
-                Ir a iniciar sesión
-              </ThemedText>
-            </Pressable>
+            <Button label="Ir a iniciar sesión" />
           </Link>
         </SafeAreaView>
       </ThemedView>
@@ -52,60 +61,81 @@ export default function RegisterScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <ThemedText type="subtitle" style={styles.subtitle}>
-          Crear cuenta
-        </ThemedText>
-
-        <TextInput style={styles.input} placeholder="Nombre completo" value={fullName} onChangeText={setFullName} />
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          autoCapitalize="none"
-          keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Contraseña"
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-        />
-
-        <ThemedText type="small">¿Cómo te registrás?</ThemedText>
-        <ThemedView style={styles.roleRow}>
-          <Pressable
-            style={[styles.roleOption, role === 'individual' && styles.roleOptionSelected]}
-            onPress={() => setRole('individual')}
-          >
-            <ThemedText type="default">Persona</ThemedText>
-          </Pressable>
-          <Pressable
-            style={[styles.roleOption, role === 'shelter' && styles.roleOptionSelected]}
-            onPress={() => setRole('shelter')}
-          >
-            <ThemedText type="default">Refugio / rescatista</ThemedText>
-          </Pressable>
-        </ThemedView>
-
-        {error && (
-          <ThemedText type="small" style={styles.error}>
-            {error}
-          </ThemedText>
-        )}
-
-        <Pressable style={styles.button} onPress={handleSubmit} disabled={isLoading}>
-          <ThemedText type="default" style={styles.buttonText}>
-            {isLoading ? 'Creando cuenta...' : 'Crear cuenta'}
-          </ThemedText>
+        <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={12}>
+          <Ionicons name="chevron-back" size={22} color={theme.text} />
         </Pressable>
 
-        <Link href="/(auth)/login" asChild>
-          <Pressable>
-            <ThemedText type="linkPrimary">¿Ya tenés cuenta? Ingresá</ThemedText>
-          </Pressable>
-        </Link>
+        <ThemedText type="title">Crear cuenta</ThemedText>
+        <ThemedText type="default" themeColor="textSecondary" style={styles.subtitle}>
+          Publicá avisos, sumate como refugio, o adoptá.
+        </ThemedText>
+
+        <ThemedView style={styles.form}>
+          <TextField label="Nombre completo" placeholder="Tu nombre" value={fullName} onChangeText={setFullName} />
+          <TextField
+            label="Email"
+            placeholder="tu@email.com"
+            autoCapitalize="none"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+          />
+          <TextField
+            label="Contraseña"
+            placeholder="••••••••"
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+          />
+
+          <ThemedText type="caption" themeColor="textSecondary" style={styles.roleLabel}>
+            Tipo de cuenta
+          </ThemedText>
+          <ThemedView style={styles.roleRow}>
+            {ROLES.map(opt => {
+              const selected = role === opt.value;
+              return (
+                <Pressable
+                  key={opt.value}
+                  style={[
+                    styles.roleOption,
+                    {
+                      backgroundColor: selected ? theme.accentSoft : theme.backgroundElement,
+                      borderColor: selected ? theme.accent : theme.border,
+                      borderWidth: selected ? 2 : 1,
+                    },
+                  ]}
+                  onPress={() => setRole(opt.value)}
+                >
+                  <Ionicons name={opt.icon} size={20} color={selected ? theme.accent : theme.textSecondary} />
+                  <ThemedText type="small" style={{ color: selected ? theme.accent : theme.text, fontWeight: '600' }}>
+                    {opt.label}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </ThemedView>
+
+          {error && (
+            <ThemedView style={[styles.errorBox, { backgroundColor: theme.dangerSoft }]}>
+              <Ionicons name="alert-circle" size={16} color={theme.danger} />
+              <ThemedText type="small" style={{ color: theme.danger, flex: 1 }}>
+                {error}
+              </ThemedText>
+            </ThemedView>
+          )}
+
+          <Button label="Crear cuenta" onPress={handleSubmit} loading={isLoading} />
+
+          <Link href="/(auth)/login" asChild>
+            <Pressable style={styles.loginLink}>
+              <ThemedText type="default" themeColor="textSecondary">
+                ¿Ya tenés cuenta?{' '}
+              </ThemedText>
+              <ThemedText type="linkPrimary">Ingresá</ThemedText>
+            </Pressable>
+          </Link>
+        </ThemedView>
       </SafeAreaView>
     </ThemedView>
   );
@@ -114,26 +144,41 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
   },
   safeArea: {
     flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.three,
+    alignSelf: 'center',
     width: '100%',
     maxWidth: MaxContentWidth,
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.three,
+    gap: Spacing.one,
+  },
+  safeAreaCentered: {
+    flex: 1,
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: MaxContentWidth,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.four,
+    gap: Spacing.three,
+  },
+  backButton: {
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    marginBottom: Spacing.two,
   },
   subtitle: {
-    textAlign: 'center',
+    marginBottom: Spacing.four,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#CCCCCC',
-    borderRadius: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    fontSize: 16,
+  form: {
+    gap: Spacing.three,
+  },
+  roleLabel: {
+    textTransform: 'uppercase',
+    marginTop: Spacing.one,
   },
   roleRow: {
     flexDirection: 'row',
@@ -141,27 +186,31 @@ const styles = StyleSheet.create({
   },
   roleOption: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: '#CCCCCC',
-    borderRadius: Spacing.two,
-    paddingVertical: Spacing.two,
-    alignItems: 'center',
-  },
-  roleOptionSelected: {
-    borderColor: '#3c87f7',
-    borderWidth: 2,
-  },
-  button: {
-    backgroundColor: '#3c87f7',
-    borderRadius: Spacing.two,
+    borderRadius: Radius.sm,
     paddingVertical: Spacing.three,
     alignItems: 'center',
-    marginTop: Spacing.two,
+    gap: Spacing.one,
   },
-  buttonText: {
-    color: '#ffffff',
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    padding: Spacing.two,
+    borderRadius: Radius.sm,
   },
-  error: {
-    color: '#D64545',
+  loginLink: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: Spacing.one,
+  },
+  confirmIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: Radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centerText: {
+    textAlign: 'center',
   },
 });
