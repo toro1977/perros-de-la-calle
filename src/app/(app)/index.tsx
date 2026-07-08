@@ -56,7 +56,11 @@ export default function PostsListScreen() {
     const toneSoft = theme[`${meta.tone}Soft` as const];
     return (
       <Link href={{ pathname: '/post/[id]', params: { id: item.id } }} asChild>
-        <Pressable style={({ pressed }) => [styles.card, { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.8 : 1 }]}>
+        <Pressable
+          style={({ pressed }) =>
+            StyleSheet.flatten([styles.card, { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.8 : 1 }])
+          }
+        >
           <Image source={{ uri: item.photo_url }} style={styles.thumbnail} contentFit="cover" />
           <ThemedView style={styles.cardInfo}>
             <ThemedView style={[styles.badge, { backgroundColor: toneSoft }]}>
@@ -169,7 +173,7 @@ export default function PostsListScreen() {
         )}
 
         <Link href="/new-post" asChild>
-          <Pressable style={[styles.fab, { backgroundColor: theme.accent }]}>
+          <Pressable style={StyleSheet.flatten([styles.fab, { backgroundColor: theme.accent }])}>
             <Ionicons name="add" size={20} color={theme.onAccent} />
             <ThemedText type="default" style={[styles.fabText, { color: theme.onAccent }]}>
               Publicar

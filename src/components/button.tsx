@@ -24,15 +24,17 @@ export function Button({ label, variant = 'primary', loading, icon, disabled, ..
   return (
     <Pressable
       disabled={isDisabled}
-      style={({ pressed }) => [
-        styles.base,
-        {
-          backgroundColor,
-          borderColor,
-          borderWidth: variant === 'ghost' ? 1 : 0,
-          opacity: isDisabled ? 0.55 : pressed ? 0.82 : 1,
-        },
-      ]}
+      style={({ pressed }) =>
+        StyleSheet.flatten([
+          styles.base,
+          {
+            backgroundColor,
+            borderColor,
+            borderWidth: variant === 'ghost' ? 1 : 0,
+            opacity: isDisabled ? 0.55 : pressed ? 0.82 : 1,
+          },
+        ])
+      }
       {...rest}
     >
       {loading ? (
