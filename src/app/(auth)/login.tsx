@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Link } from 'expo-router';
 import { Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -32,12 +31,7 @@ export default function LoginScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <LinearGradient
-          colors={[theme.accent, '#8E3E14']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.hero}
-        >
+        <ThemedView style={[styles.hero, { backgroundColor: theme.accent }]}>
           <Ionicons name="paw" size={44} color={theme.onAccent} />
           <ThemedText type="title" style={[styles.appName, { color: theme.onAccent }]}>
             Perros de la calle
@@ -45,7 +39,7 @@ export default function LoginScreen() {
           <ThemedText type="default" style={[styles.tagline, { color: theme.onAccent }]}>
             Perdidos, encontrados y en adopción — cerca tuyo
           </ThemedText>
-        </LinearGradient>
+        </ThemedView>
 
         <ThemedView style={styles.form}>
           <TextField
