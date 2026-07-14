@@ -129,7 +129,6 @@ export default function NewPostScreen() {
                       {
                         backgroundColor: selected ? toneSoft : theme.backgroundElement,
                         borderColor: selected ? toneColor : theme.border,
-                        borderWidth: selected ? 2 : 1,
                       },
                     ]}
                     onPress={() => setType(value)}
@@ -208,7 +207,7 @@ export default function NewPostScreen() {
             <BreedAutocomplete
               ref={breedRef}
               label="Raza (opcional)"
-              placeholder="Ej. Mestizo, Callejero, Labrador..."
+              placeholder="Ej. Mestizo, Labrador..."
               value={breed}
               onChangeText={setBreed}
               onFocus={() => scrollFieldIntoView(scrollRef.current, breedRef.current)}
@@ -252,9 +251,11 @@ export default function NewPostScreen() {
                 </ThemedText>
               </ThemedView>
             )}
-
-            <Button label="Publicar" onPress={handleSubmit} loading={isLoading} disabled={photos.length === 0} />
           </ScrollView>
+
+          <ThemedView style={[styles.footer, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
+            <Button label="Publicar" onPress={handleSubmit} loading={isLoading} disabled={photos.length === 0} />
+          </ThemedView>
         </KeyboardAvoidingView>
       </SafeAreaView>
 
@@ -301,8 +302,14 @@ const styles = StyleSheet.create({
   scroll: {
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.two,
-    paddingBottom: Spacing.six,
+    paddingBottom: Spacing.four,
     gap: Spacing.three,
+  },
+  footer: {
+    borderTopWidth: 1,
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.three,
+    paddingBottom: Spacing.three,
   },
   sectionLabel: {
     textTransform: 'uppercase',
@@ -315,6 +322,7 @@ const styles = StyleSheet.create({
   typeOption: {
     flex: 1,
     borderRadius: Radius.sm,
+    borderWidth: 2,
     paddingVertical: Spacing.three,
     alignItems: 'center',
     gap: Spacing.one,

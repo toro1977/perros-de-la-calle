@@ -1,6 +1,5 @@
 export const DOG_BREEDS = [
   'Mestizo',
-  'Callejero',
   'Labrador Retriever',
   'Golden Retriever',
   'Caniche (Poodle)',

@@ -7,11 +7,13 @@ export type CurrentLocation = {
   zoneText: string;
 };
 
-// Builds a short human-readable area label (e.g. "Quilmes, Buenos Aires")
-// from reverse geocoding, without needing a map — good enough for a list.
+// Builds a short human-readable area label (e.g. "Quilmes") from reverse
+// geocoding. Just the most granular component — a card title that's the
+// same "Provincia de Buenos Aires" on every post doesn't help anyone
+// tell posts apart, so province/country never make it into this label.
 function buildZoneText(place: Location.LocationGeocodedAddress | undefined) {
   if (!place) return 'Ubicación sin identificar';
-  return [place.city ?? place.subregion, place.region].filter(Boolean).join(', ') || 'Ubicación sin identificar';
+  return place.district ?? place.city ?? place.subregion ?? 'Ubicación sin identificar';
 }
 
 export async function reverseGeocode(lat: number, lng: number): Promise<string> {

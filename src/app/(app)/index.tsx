@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Link, useFocusEffect } from 'expo-router';
-import { FlatList, Pressable, StyleSheet } from 'react-native';
+import { FlatList, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MapPostsView } from '@/components/map-posts-view';
 import { Skeleton } from '@/components/skeleton';
@@ -15,6 +15,7 @@ import { getCurrentLocation } from '@/services/location';
 import { useAuthStore } from '@/stores/authStore';
 import { DogPostListItem, useDogPostsStore } from '@/stores/dogPostsStore';
 import { DogPostType } from '@/types/database.types';
+import { formatDistance } from '@/utils/format-distance';
 import { tapHaptic } from '@/utils/haptics';
 import { formatRelativeTime } from '@/utils/relative-time';
 
@@ -52,7 +53,7 @@ export default function PostsListScreen() {
 
   function renderItem({ item }: { item: DogPostListItem }) {
     const secondaryParts = [
-      item.distance_km != null ? `a ${item.distance_km} km` : null,
+      item.distance_km != null ? formatDistance(item.distance_km) : null,
       item.breed || null,
     ].filter(Boolean);
 
@@ -76,7 +77,7 @@ export default function PostsListScreen() {
             </ThemedView>
           </ThemedView>
           <ThemedView style={styles.cardInfo}>
-            <ThemedText type="default" style={styles.cardZone}>
+            <ThemedText type="default" numberOfLines={1} style={styles.cardZone}>
               {item.zone_text}
             </ThemedText>
             {secondaryParts.length > 0 && (
@@ -121,7 +122,12 @@ export default function PostsListScreen() {
           </ThemedView>
         </ThemedView>
 
-        <ThemedView style={styles.filters}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filtersScroll}
+          contentContainerStyle={styles.filters}
+        >
           {FILTERS.map(f => {
             const active = filter === f.value;
             return (
@@ -139,17 +145,13 @@ export default function PostsListScreen() {
                   setFilter(f.value);
                 }}
               >
-                <ThemedText
-                  type="small"
-                  numberOfLines={1}
-                  style={{ color: active ? theme.onAccent : theme.text, fontWeight: '600' }}
-                >
+                <ThemedText type="small" style={{ color: active ? theme.onAccent : theme.text, fontWeight: '600' }}>
                   {f.label}
                 </ThemedText>
               </Pressable>
             );
           })}
-        </ThemedView>
+        </ScrollView>
 
         {profile?.role === 'shelter' && (
           <ThemedView style={[styles.banner, { backgroundColor: theme.accentSoft, borderColor: theme.accent }]}>
@@ -257,18 +259,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  filtersScroll: {
+    flexGrow: 0,
+  },
   filters: {
     flexDirection: 'row',
     gap: Spacing.two,
     paddingBottom: Spacing.three,
   },
   filterChip: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 10,
     borderWidth: 1.5,
-    paddingHorizontal: Spacing.one,
+    paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
   },
   banner: {
@@ -282,7 +286,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     gap: Spacing.four,
-    paddingBottom: Spacing.six,
+    paddingBottom: Spacing.seven,
   },
   card: {
     borderRadius: 18,
@@ -349,7 +353,7 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     bottom: Spacing.four,
-    right: Spacing.two,
+    right: Spacing.three,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.one,

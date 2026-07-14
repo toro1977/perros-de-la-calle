@@ -78,6 +78,10 @@ export const Spacing = {
   four: 24,
   five: 32,
   six: 64,
+  // Clears a floating FAB (~52px tall, offset four from the bottom edge)
+  // plus a bit of breathing room, so a scrollable list's last item never
+  // sits underneath it.
+  seven: 100,
 } as const;
 
 export const Radius = {
