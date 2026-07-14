@@ -11,6 +11,7 @@ import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuthStore } from '@/stores/authStore';
 import { UserRole } from '@/types/database.types';
+import { normalizeArPhone } from '@/utils/phone';
 import { scrollFieldIntoView } from '@/utils/scroll-to-input';
 
 const ROLES: { value: UserRole; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
@@ -40,9 +41,14 @@ export default function RegisterScreen() {
       setError('Falta tu teléfono — lo necesitamos para que te puedan contactar si alguien ve a tu perro.');
       return;
     }
+    const normalizedPhone = normalizeArPhone(phone);
+    if (!normalizedPhone) {
+      setError('Ese teléfono no parece válido. Escribí el número sin el 0 ni el 15 (ej. 11 2345-6789).');
+      return;
+    }
     setError(null);
     try {
-      await signUpWithEmail(email, password, fullName, phone.trim(), role);
+      await signUpWithEmail(email, password, fullName, normalizedPhone, role);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo crear la cuenta');
     }
@@ -105,7 +111,8 @@ export default function RegisterScreen() {
               <TextField
                 ref={phoneRef}
                 label="Teléfono (WhatsApp)"
-                placeholder="Ej. 11 5555-5555"
+                prefix="+54 9"
+                placeholder="11 2345-6789"
                 keyboardType="phone-pad"
                 value={phone}
                 onChangeText={setPhone}

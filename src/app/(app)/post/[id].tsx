@@ -14,9 +14,10 @@ import { useTheme } from '@/hooks/use-theme';
 import { useAuthStore } from '@/stores/authStore';
 import { DogPostDetail, useDogPostsStore } from '@/stores/dogPostsStore';
 import { DogPostType } from '@/types/database.types';
+import { normalizeArPhone } from '@/utils/phone';
 
-function buildWhatsAppUrl(phone: string, zoneText: string) {
-  const digits = phone.replace(/\D/g, '');
+function buildWhatsAppUrl(e164Phone: string, zoneText: string) {
+  const digits = e164Phone.replace(/\D/g, '');
   const message = `Hola! Vi tu aviso de un perro en ${zoneText} en la app Perros de la calle.`;
   return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
 }
@@ -54,12 +55,13 @@ export default function PostDetailScreen() {
 
   async function handleContact() {
     if (!post) return;
-    if (!post.contact_phone) {
-      setContactError('Quien publicó este aviso no dejó un teléfono de contacto.');
+    const normalizedPhone = post.contact_phone ? normalizeArPhone(post.contact_phone) : null;
+    if (!normalizedPhone) {
+      setContactError('Quien publicó este aviso no dejó un teléfono de contacto válido.');
       return;
     }
     setContactError(null);
-    await Linking.openURL(buildWhatsAppUrl(post.contact_phone, post.zone_text));
+    await Linking.openURL(buildWhatsAppUrl(normalizedPhone, post.zone_text));
   }
 
   if (!post) {

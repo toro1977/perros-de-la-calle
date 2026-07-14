@@ -6,12 +6,14 @@ import { useTheme } from '@/hooks/use-theme';
 
 export type TextFieldProps = TextInputProps & {
   label: string;
+  /** Fixed, non-editable text shown before the input (e.g. "+54 9"). */
+  prefix?: string;
 };
 
 type Props = TextFieldProps;
 
 export const TextField = forwardRef<TextInput, Props>(function TextField(
-  { label, style, onFocus, onBlur, ...rest },
+  { label, style, onFocus, onBlur, prefix, ...rest },
   ref
 ) {
   const theme = useTheme();
@@ -22,29 +24,36 @@ export const TextField = forwardRef<TextInput, Props>(function TextField(
       <ThemedText type="caption" themeColor="textSecondary" style={styles.label}>
         {label}
       </ThemedText>
-      <TextInput
-        ref={ref}
+      <View
         style={[
-          styles.input,
+          styles.inputWrap,
           {
-            color: theme.text,
             backgroundColor: theme.backgroundElement,
             borderColor: isFocused ? theme.accent : theme.border,
             borderWidth: isFocused ? 2 : 1,
           },
-          style,
         ]}
-        placeholderTextColor={theme.textSecondary}
-        onFocus={e => {
-          setIsFocused(true);
-          onFocus?.(e);
-        }}
-        onBlur={e => {
-          setIsFocused(false);
-          onBlur?.(e);
-        }}
-        {...rest}
-      />
+      >
+        {prefix && (
+          <ThemedText type="default" themeColor="textSecondary" style={styles.prefix}>
+            {prefix}
+          </ThemedText>
+        )}
+        <TextInput
+          ref={ref}
+          style={[styles.input, { color: theme.text }, style]}
+          placeholderTextColor={theme.textSecondary}
+          onFocus={e => {
+            setIsFocused(true);
+            onFocus?.(e);
+          }}
+          onBlur={e => {
+            setIsFocused(false);
+            onBlur?.(e);
+          }}
+          {...rest}
+        />
+      </View>
     </View>
   );
 });
@@ -56,9 +65,17 @@ const styles = StyleSheet.create({
   label: {
     textTransform: 'uppercase',
   },
-  input: {
+  inputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
     borderRadius: Radius.sm,
     paddingHorizontal: Spacing.three,
+  },
+  prefix: {
+    marginRight: 2,
+  },
+  input: {
+    flex: 1,
     paddingVertical: Spacing.two + 2,
     fontSize: 16,
   },
