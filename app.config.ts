@@ -62,6 +62,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         cameraPermission: 'Usamos la cámara para sacarle una foto al perro.',
       },
     ],
+    'expo-secure-store',
   ],
   experiments: {
     typedRoutes: true,
