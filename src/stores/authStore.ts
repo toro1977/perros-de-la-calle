@@ -20,6 +20,7 @@ type AuthActions = {
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  updateProfile: (updates: { fullName: string; phone: string }) => Promise<void>;
 };
 
 // Creates the users (and shelters, if role=shelter) row the first time a
@@ -154,5 +155,21 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     if (!session) return;
     const { data } = await supabase.from('users').select('*').eq('id', session.user.id).single();
     set({ profile: data ?? null });
+  },
+
+  updateProfile: async ({ fullName, phone }) => {
+    const { session } = get();
+    if (!session) return;
+    set({ isLoading: true });
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ full_name: fullName, phone })
+        .eq('id', session.user.id);
+      if (error) throw error;
+      await get().refreshProfile();
+    } finally {
+      set({ isLoading: false });
+    }
   },
 }));

@@ -2,8 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Link, useFocusEffect } from 'expo-router';
-import { Alert, FlatList, Pressable, ScrollView, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { FlatList, Pressable, StyleSheet } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BottomTabBar, TAB_BAR_HEIGHT } from '@/components/bottom-tab-bar';
 import { MapPostsView } from '@/components/map-posts-view';
 import { Skeleton } from '@/components/skeleton';
 import { StatusBadge } from '@/components/status-badge';
@@ -19,8 +21,11 @@ import { formatDistance } from '@/utils/format-distance';
 import { tapHaptic } from '@/utils/haptics';
 import { formatRelativeTime } from '@/utils/relative-time';
 
-const FILTERS: { label: string; value: DogPostType | undefined }[] = [
-  { label: 'Todos', value: undefined },
+// No explicit "Todos" chip — tapping the active filter again clears it
+// back to "all", the same pattern Instagram/Mercado Libre use. With four
+// chips ("Encontrados"/"Callejeros" are long words) there isn't room for
+// an extra one on a phone-width screen without shrinking text.
+const FILTERS: { label: string; value: DogPostType }[] = [
   { label: 'Perdidos', value: 'lost' },
   { label: 'Encontrados', value: 'found' },
   { label: 'Callejeros', value: 'stray' },
@@ -28,21 +33,15 @@ const FILTERS: { label: string; value: DogPostType | undefined }[] = [
 
 export default function PostsListScreen() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const fadeHeight = TAB_BAR_HEIGHT + insets.bottom + Spacing.six;
   const profile = useAuthStore(s => s.profile);
-  const signOut = useAuthStore(s => s.signOut);
   const posts = useDogPostsStore(s => s.posts);
   const fetchPosts = useDogPostsStore(s => s.fetchPosts);
   const isLoading = useDogPostsStore(s => s.isLoading);
   const [filter, setFilter] = useState<DogPostType | undefined>(undefined);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
-
-  function handleSignOut() {
-    Alert.alert('Cerrar sesión', '¿Seguro que querés cerrar sesión?', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Cerrar sesión', style: 'destructive', onPress: signOut },
-    ]);
-  }
 
   useEffect(() => {
     getCurrentLocation()
@@ -100,7 +99,7 @@ export default function PostsListScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         <ThemedView style={styles.header}>
           <ThemedView style={styles.headerText}>
             <ThemedText type="kicker" themeColor="textSecondary">
@@ -125,24 +124,10 @@ export default function PostsListScreen() {
             >
               <Ionicons name={viewMode === 'list' ? 'map-outline' : 'list-outline'} size={20} color={theme.text} />
             </Pressable>
-            <Pressable
-              style={[styles.iconButton, { backgroundColor: theme.backgroundElement }]}
-              onPress={handleSignOut}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Cerrar sesión"
-            >
-              <Ionicons name="log-out-outline" size={20} color={theme.text} />
-            </Pressable>
           </ThemedView>
         </ThemedView>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filtersScroll}
-          contentContainerStyle={styles.filters}
-        >
+        <ThemedView style={styles.filters}>
           {FILTERS.map(f => {
             const active = filter === f.value;
             return (
@@ -157,7 +142,7 @@ export default function PostsListScreen() {
                 ]}
                 onPress={() => {
                   tapHaptic();
-                  setFilter(f.value);
+                  setFilter(active ? undefined : f.value);
                 }}
               >
                 <ThemedText type="small" style={{ color: active ? theme.onAccent : theme.text, fontWeight: '600' }}>
@@ -166,7 +151,7 @@ export default function PostsListScreen() {
               </Pressable>
             );
           })}
-        </ScrollView>
+        </ThemedView>
 
         {profile?.role === 'shelter' && (
           <ThemedView style={[styles.banner, { backgroundColor: theme.accentSoft, borderColor: theme.accent }]}>
@@ -185,44 +170,44 @@ export default function PostsListScreen() {
               ))}
             </ThemedView>
           ) : (
-            <FlatList
-              data={posts}
-              keyExtractor={item => item.id}
-              renderItem={renderItem}
-              onRefresh={reload}
-              refreshing={isLoading}
-              contentContainerStyle={styles.listContent}
-              ListEmptyComponent={
-                <ThemedView style={styles.empty}>
-                  <Ionicons name="paw-outline" size={32} color={theme.textSecondary} />
-                  <ThemedText type="default" style={styles.emptyTitle}>
-                    Todavía no hay avisos por acá
-                  </ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary" style={styles.emptyText}>
-                    ¿Viste un perro perdido, encontrado o callejero? Sé el primero en publicarlo.
-                  </ThemedText>
-                </ThemedView>
-              }
-            />
+            <ThemedView style={styles.listWrap}>
+              <FlatList
+                data={posts}
+                keyExtractor={item => item.id}
+                renderItem={renderItem}
+                onRefresh={reload}
+                refreshing={isLoading}
+                contentContainerStyle={[styles.listContent, { paddingBottom: fadeHeight }]}
+                ListEmptyComponent={
+                  <ThemedView style={styles.empty}>
+                    <Ionicons name="paw-outline" size={32} color={theme.textSecondary} />
+                    <ThemedText type="default" style={styles.emptyTitle}>
+                      Todavía no hay avisos por acá
+                    </ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary" style={styles.emptyText}>
+                      ¿Viste un perro perdido, encontrado o callejero? Sé el primero en publicarlo.
+                    </ThemedText>
+                  </ThemedView>
+                }
+              />
+              {/* Fades cards into the background before they reach the
+                  floating tab bar, instead of them hard-cutting behind it. */}
+              <LinearGradient
+                pointerEvents="none"
+                colors={[`${theme.background}00`, theme.background]}
+                locations={[0, 0.75]}
+                style={[styles.listFade, { height: fadeHeight }]}
+              />
+            </ThemedView>
           )
         ) : (
           <ThemedView style={styles.mapWrap}>
             <MapPostsView posts={posts} center={coords} />
           </ThemedView>
         )}
-
-        <Link href="/new-post" asChild>
-          <Pressable
-            onPress={tapHaptic}
-            style={StyleSheet.flatten([styles.fab, { backgroundColor: theme.danger }])}
-          >
-            <Ionicons name="add" size={20} color="#FFFFFF" />
-            <ThemedText type="default" style={styles.fabText}>
-              Publicar
-            </ThemedText>
-          </Pressable>
-        </Link>
       </SafeAreaView>
+
+      <BottomTabBar />
     </ThemedView>
   );
 }
@@ -274,11 +259,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  filtersScroll: {
-    flexGrow: 0,
-  },
   filters: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: Spacing.two,
     paddingBottom: Spacing.three,
   },
@@ -299,9 +282,17 @@ const styles = StyleSheet.create({
     padding: Spacing.two + 2,
     marginBottom: Spacing.three,
   },
+  listWrap: {
+    flex: 1,
+  },
   listContent: {
     gap: Spacing.four,
-    paddingBottom: Spacing.seven,
+  },
+  listFade: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   card: {
     borderRadius: 18,
@@ -361,26 +352,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     overflow: 'hidden',
     marginBottom: Spacing.three,
-  },
-  fab: {
-    position: 'absolute',
-    bottom: Spacing.four,
-    right: Spacing.three,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    borderRadius: Radius.full,
-    paddingVertical: Spacing.three,
-    paddingHorizontal: Spacing.four,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  fabText: {
-    fontWeight: '700',
-    color: '#FFFFFF',
   },
   skeletonLine: {
     height: 14,

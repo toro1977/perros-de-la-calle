@@ -147,6 +147,9 @@ export default function NewPostScreen() {
                 );
               })}
             </ThemedView>
+            <ThemedText type="caption" themeColor="textSecondary" style={styles.typeHint}>
+              {DOG_POST_TYPE_META[type].hint}
+            </ThemedText>
 
             <ThemedText type="caption" themeColor="textSecondary" style={styles.sectionLabel}>
               Fotos
@@ -334,6 +337,9 @@ const styles = StyleSheet.create({
   sectionLabel: {
     textTransform: 'uppercase',
     marginTop: Spacing.one,
+  },
+  typeHint: {
+    marginTop: -Spacing.two,
   },
   typeRow: {
     flexDirection: 'row',
