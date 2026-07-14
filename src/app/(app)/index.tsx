@@ -16,6 +16,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { getCurrentLocation } from '@/services/location';
 import { useAuthStore } from '@/stores/authStore';
 import { DogPostListItem, useDogPostsStore } from '@/stores/dogPostsStore';
+import { useFeedViewStore } from '@/stores/feedViewStore';
 import { useScrollActivityStore } from '@/stores/scrollActivityStore';
 import { DogPostType } from '@/types/database.types';
 import { formatDistance } from '@/utils/format-distance';
@@ -42,7 +43,7 @@ export default function PostsListScreen() {
   const isLoading = useDogPostsStore(s => s.isLoading);
   const [filter, setFilter] = useState<DogPostType | undefined>(undefined);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const viewMode = useFeedViewStore(s => s.viewMode);
   const setScrolling = useScrollActivityStore(s => s.setScrolling);
   const scrollIdleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -131,17 +132,6 @@ export default function PostsListScreen() {
                 Hola, {profile.full_name.split(' ')[0]}
               </ThemedText>
             )}
-          </ThemedView>
-          <ThemedView style={styles.headerActions}>
-            <Pressable
-              style={[styles.iconButton, { backgroundColor: theme.backgroundElement }]}
-              onPress={() => setViewMode(m => (m === 'list' ? 'map' : 'list'))}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={viewMode === 'list' ? 'Ver mapa' : 'Ver lista'}
-            >
-              <Ionicons name={viewMode === 'list' ? 'map-outline' : 'list-outline'} size={20} color={theme.text} />
-            </Pressable>
           </ThemedView>
         </ThemedView>
 
@@ -257,9 +247,6 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
     paddingVertical: Spacing.three,
   },
   headerText: {
@@ -267,17 +254,6 @@ const styles = StyleSheet.create({
   },
   title: {
     marginTop: 2,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-  },
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: Radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   filters: {
     flexDirection: 'row',
