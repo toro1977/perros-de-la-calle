@@ -9,20 +9,26 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useFeedViewStore } from '@/stores/feedViewStore';
 import { useScrollActivityStore } from '@/stores/scrollActivityStore';
 import { tapHaptic } from '@/utils/haptics';
 
 // Edge-to-edge bar (Instagram/native-iOS style) instead of expo-router's
 // <Tabs> — that needs @react-navigation/bottom-tabs, which isn't
-// installed, and this app only has two real top-level destinations
-// (Feed, Perfil) plus one action (Publicar) that isn't a screen you
-// "stay on". A full tab navigator would be more machinery than the app
-// needs right now.
+// installed, and Mapa isn't a real screen (it's a view-mode toggle on
+// "/"), so a stock tab navigator wouldn't map cleanly onto these 5
+// slots anyway.
 export function BottomTabBar() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
+  const viewMode = useFeedViewStore(s => s.viewMode);
+  const setViewMode = useFeedViewStore(s => s.setViewMode);
+  const isFeedRoute = pathname === '/';
+  const isFeedActive = isFeedRoute && viewMode === 'list';
+  const isMapaActive = isFeedRoute && viewMode === 'map';
   const isProfile = pathname === '/profile';
+  const isNotifications = pathname === '/notifications';
   const isScrolling = useScrollActivityStore(s => s.isScrolling);
   const compact = useSharedValue(0);
 
@@ -40,9 +46,26 @@ export function BottomTabBar() {
     borderRightWidth: compact.value,
   }));
 
-  function go(path: '/' | '/profile') {
+  function goFeed() {
     tapHaptic();
-    router.replace(path);
+    setViewMode('list');
+    router.replace('/');
+  }
+
+  function goMapa() {
+    tapHaptic();
+    setViewMode('map');
+    router.replace('/');
+  }
+
+  function goNotifications() {
+    tapHaptic();
+    router.replace('/notifications');
+  }
+
+  function goProfile() {
+    tapHaptic();
+    router.replace('/profile');
   }
 
   function goPublish() {
@@ -62,13 +85,25 @@ export function BottomTabBar() {
         <ThemedView style={styles.row}>
           <Pressable
             style={({ pressed }) => [styles.tabButton, pressed && { backgroundColor: theme.backgroundElement }]}
-            onPress={() => go('/')}
+            onPress={goFeed}
             accessibilityRole="button"
             accessibilityLabel="Feed"
           >
-            <Ionicons name={isProfile ? 'home-outline' : 'home'} size={24} color={isProfile ? theme.textSecondary : theme.text} />
-            <ThemedText type="caption" style={{ color: isProfile ? theme.textSecondary : theme.text }}>
+            <Ionicons name={isFeedActive ? 'home' : 'home-outline'} size={22} color={isFeedActive ? theme.text : theme.textSecondary} />
+            <ThemedText type="caption" style={{ color: isFeedActive ? theme.text : theme.textSecondary }}>
               Feed
+            </ThemedText>
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [styles.tabButton, pressed && { backgroundColor: theme.backgroundElement }]}
+            onPress={goMapa}
+            accessibilityRole="button"
+            accessibilityLabel="Mapa"
+          >
+            <Ionicons name={isMapaActive ? 'map' : 'map-outline'} size={22} color={isMapaActive ? theme.text : theme.textSecondary} />
+            <ThemedText type="caption" style={{ color: isMapaActive ? theme.text : theme.textSecondary }}>
+              Mapa
             </ThemedText>
           </Pressable>
 
@@ -78,7 +113,7 @@ export function BottomTabBar() {
             accessibilityRole="button"
             accessibilityLabel="Publicar aviso"
           >
-            <Ionicons name="add-circle-outline" size={24} color={theme.text} />
+            <Ionicons name="add-circle-outline" size={22} color={theme.text} />
             <ThemedText type="caption" style={{ color: theme.text }}>
               Publicar
             </ThemedText>
@@ -86,11 +121,27 @@ export function BottomTabBar() {
 
           <Pressable
             style={({ pressed }) => [styles.tabButton, pressed && { backgroundColor: theme.backgroundElement }]}
-            onPress={() => go('/profile')}
+            onPress={goNotifications}
+            accessibilityRole="button"
+            accessibilityLabel="Notificaciones"
+          >
+            <Ionicons
+              name={isNotifications ? 'notifications' : 'notifications-outline'}
+              size={22}
+              color={isNotifications ? theme.text : theme.textSecondary}
+            />
+            <ThemedText type="caption" style={{ color: isNotifications ? theme.text : theme.textSecondary }}>
+              Avisos
+            </ThemedText>
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [styles.tabButton, pressed && { backgroundColor: theme.backgroundElement }]}
+            onPress={goProfile}
             accessibilityRole="button"
             accessibilityLabel="Perfil"
           >
-            <Ionicons name={isProfile ? 'person' : 'person-outline'} size={24} color={isProfile ? theme.text : theme.textSecondary} />
+            <Ionicons name={isProfile ? 'person' : 'person-outline'} size={22} color={isProfile ? theme.text : theme.textSecondary} />
             <ThemedText type="caption" style={{ color: isProfile ? theme.text : theme.textSecondary }}>
               Perfil
             </ThemedText>
@@ -113,7 +164,7 @@ const styles = StyleSheet.create({
   },
   bar: {
     borderTopWidth: 1,
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: Spacing.two,
     paddingTop: Spacing.two,
     overflow: 'hidden',
   },
