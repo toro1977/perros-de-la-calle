@@ -1483,6 +1483,19 @@ export type Database = {
         Returns: unknown
       }
       unlockrows: { Args: { "": string }; Returns: number }
+      update_dog_post: {
+        Args: {
+          p_breed?: string
+          p_description?: string
+          p_id: string
+          p_lat: number
+          p_lng: number
+          p_photo_urls: string[]
+          p_type: string
+          p_zone_text: string
+        }
+        Returns: undefined
+      }
       updategeometrysrid: {
         Args: {
           catalogn_name: string

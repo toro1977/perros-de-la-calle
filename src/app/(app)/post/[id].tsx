@@ -136,15 +136,28 @@ export default function PostDetailScreen() {
             >
               <Ionicons name="chevron-back" size={22} color="#fff" />
             </Pressable>
-            <Pressable
-              style={[styles.backButton, { backgroundColor: 'rgba(0,0,0,0.45)' }]}
-              onPress={handleShare}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Compartir aviso"
-            >
-              <Ionicons name="share-outline" size={20} color="#fff" />
-            </Pressable>
+            <ThemedView style={styles.photoOverlayActions}>
+              {isOwner && (
+                <Pressable
+                  style={[styles.backButton, { backgroundColor: 'rgba(0,0,0,0.45)' }]}
+                  onPress={() => router.push({ pathname: '/new-post', params: { id: post.id } })}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Editar aviso"
+                >
+                  <Ionicons name="pencil-outline" size={20} color="#fff" />
+                </Pressable>
+              )}
+              <Pressable
+                style={[styles.backButton, { backgroundColor: 'rgba(0,0,0,0.45)' }]}
+                onPress={handleShare}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Compartir aviso"
+              >
+                <Ionicons name="share-outline" size={20} color="#fff" />
+              </Pressable>
+            </ThemedView>
           </SafeAreaView>
           <ThemedView style={styles.photoFooter}>
             {post.photo_urls.length > 1 && (
@@ -260,6 +273,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: Spacing.one,
+  },
+  photoOverlayActions: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+    backgroundColor: 'transparent',
   },
   photoFooter: {
     position: 'absolute',

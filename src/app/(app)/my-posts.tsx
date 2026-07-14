@@ -71,15 +71,29 @@ export default function MyPostsScreen() {
           </ThemedView>
         </Pressable>
 
-        <Pressable
-          onPress={() => handleDelete(item)}
-          hitSlop={8}
-          style={({ pressed }) => [styles.deleteButton, { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.7 : 1 }]}
-          accessibilityRole="button"
-          accessibilityLabel="Borrar aviso"
-        >
-          <Ionicons name="trash-outline" size={18} color={theme.danger} />
-        </Pressable>
+        <ThemedView style={styles.cardActions}>
+          <Pressable
+            onPress={() => {
+              tapHaptic();
+              router.push({ pathname: '/new-post', params: { id: item.id } });
+            }}
+            hitSlop={8}
+            style={({ pressed }) => [styles.actionButton, { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.7 : 1 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Editar aviso"
+          >
+            <Ionicons name="pencil-outline" size={16} color={theme.text} />
+          </Pressable>
+          <Pressable
+            onPress={() => handleDelete(item)}
+            hitSlop={8}
+            style={({ pressed }) => [styles.actionButton, { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.7 : 1 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Borrar aviso"
+          >
+            <Ionicons name="trash-outline" size={16} color={theme.danger} />
+          </Pressable>
+        </ThemedView>
       </ThemedView>
     );
   }
@@ -195,9 +209,14 @@ const styles = StyleSheet.create({
     gap: 4,
     padding: Spacing.three,
   },
-  deleteButton: {
-    width: 36,
-    height: 36,
+  cardActions: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+    backgroundColor: 'transparent',
+  },
+  actionButton: {
+    width: 32,
+    height: 32,
     borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',

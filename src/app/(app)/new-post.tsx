@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BreedAutocomplete } from '@/components/breed-autocomplete';
@@ -23,36 +23,62 @@ import { scrollFieldIntoView } from '@/utils/scroll-to-input';
 const TYPE_OPTIONS: DogPostType[] = ['lost', 'found', 'stray'];
 const MAX_PHOTOS = 4;
 
+// A photo slot is either one already uploaded (editing an existing post)
+// or one freshly picked on-device that still needs uploading on submit.
+type PhotoSlot = { kind: 'existing'; url: string } | { kind: 'new'; photo: PickedPhoto };
+
+function photoUri(slot: PhotoSlot): string {
+  return slot.kind === 'existing' ? slot.url : slot.photo.uri;
+}
+
 export default function NewPostScreen() {
   const theme = useTheme();
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const isEditMode = !!id;
   const profile = useAuthStore(s => s.profile);
   const createPost = useDogPostsStore(s => s.createPost);
+  const updatePost = useDogPostsStore(s => s.updatePost);
+  const getPost = useDogPostsStore(s => s.getPost);
   const isLoading = useDogPostsStore(s => s.isLoading);
 
   const [type, setType] = useState<DogPostType>('lost');
-  const [photos, setPhotos] = useState<PickedPhoto[]>([]);
+  const [photos, setPhotos] = useState<PhotoSlot[]>([]);
   const [breed, setBreed] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [location, setLocation] = useState<CurrentLocation | null>(null);
-  const [isLocating, setIsLocating] = useState(true);
+  const [isLocating, setIsLocating] = useState(!isEditMode);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const breedRef = useRef<TextInput>(null);
   const descriptionRef = useRef<TextInput>(null);
 
   useEffect(() => {
+    // Editing: prefill from the existing post instead of the GPS.
+    if (isEditMode && id) {
+      getPost(id).then(existing => {
+        if (!existing) return;
+        setType(existing.type as DogPostType);
+        setPhotos(existing.photo_urls.map(url => ({ kind: 'existing', url })));
+        setBreed(existing.breed ?? '');
+        setDescription(existing.description ?? '');
+        setLocation({ lat: existing.lat, lng: existing.lng, zoneText: existing.zone_text });
+      });
+      return;
+    }
     getCurrentLocation()
       .then(setLocation)
       .catch(() => {})
       .finally(() => setIsLocating(false));
-  }, []);
+  }, [isEditMode, id]);
 
   async function handleAddPhotos() {
     const remaining = MAX_PHOTOS - photos.length;
     if (remaining <= 0) return;
     const picked = await pickPhotos(remaining);
-    if (picked.length > 0) setPhotos(prev => [...prev, ...picked].slice(0, MAX_PHOTOS));
+    if (picked.length > 0) {
+      setPhotos(prev => [...prev, ...picked.map((photo): PhotoSlot => ({ kind: 'new', photo }))].slice(0, MAX_PHOTOS));
+    }
   }
 
   function handleRemovePhoto(index: number) {
@@ -72,25 +98,40 @@ export default function NewPostScreen() {
     setError(null);
 
     try {
-      const now = new Date();
-      // Local calendar date, not UTC — toISOString() would push an evening
-      // post in Argentina (UTC-3) into the next day.
-      const eventDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      if (isEditMode && id) {
+        await updatePost({
+          id,
+          userId: profile.id,
+          type,
+          existingPhotoUrls: photos.filter(p => p.kind === 'existing').map(p => p.url),
+          newPhotos: photos.filter(p => p.kind === 'new').map(p => p.photo),
+          lat: location.lat,
+          lng: location.lng,
+          zoneText: location.zoneText,
+          breed: breed.trim() || null,
+          description: description.trim() || null,
+        });
+      } else {
+        const now = new Date();
+        // Local calendar date, not UTC — toISOString() would push an evening
+        // post in Argentina (UTC-3) into the next day.
+        const eventDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-      await createPost({
-        userId: profile.id,
-        type,
-        photos,
-        lat: location.lat,
-        lng: location.lng,
-        zoneText: location.zoneText,
-        eventDate,
-        breed: breed.trim() || null,
-        description: description.trim() || null,
-      });
+        await createPost({
+          userId: profile.id,
+          type,
+          photos: photos.filter(p => p.kind === 'new').map(p => p.photo),
+          lat: location.lat,
+          lng: location.lng,
+          zoneText: location.zoneText,
+          eventDate,
+          breed: breed.trim() || null,
+          description: description.trim() || null,
+        });
+      }
       router.back();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo publicar el aviso');
+      setError(err instanceof Error ? err.message : 'No se pudo guardar el aviso');
     }
   }
 
@@ -107,7 +148,7 @@ export default function NewPostScreen() {
           >
             <Ionicons name="chevron-back" size={22} color={theme.text} />
           </Pressable>
-          <ThemedText type="subtitle">Publicar aviso</ThemedText>
+          <ThemedText type="subtitle">{isEditMode ? 'Editar aviso' : 'Publicar aviso'}</ThemedText>
           <ThemedView style={styles.backButton} />
         </ThemedView>
 
@@ -172,7 +213,7 @@ export default function NewPostScreen() {
             ) : (
               <ThemedView style={styles.photosBlock}>
                 <ThemedView style={styles.photoHeroWrap}>
-                  <Image source={{ uri: photos[0].uri }} style={styles.photoPreview} contentFit="cover" />
+                  <Image source={{ uri: photoUri(photos[0]) }} style={styles.photoPreview} contentFit="cover" />
                   <Pressable
                     style={styles.photoRemoveBadge}
                     onPress={() => handleRemovePhoto(0)}
@@ -196,8 +237,8 @@ export default function NewPostScreen() {
                   contentContainerStyle={styles.thumbRow}
                 >
                   {photos.map((p, index) => (
-                    <ThemedView key={p.uri} style={styles.thumbWrap}>
-                      <Image source={{ uri: p.uri }} style={styles.thumbImage} contentFit="cover" />
+                    <ThemedView key={photoUri(p)} style={styles.thumbWrap}>
+                      <Image source={{ uri: photoUri(p) }} style={styles.thumbImage} contentFit="cover" />
                       <Pressable
                         style={styles.thumbRemove}
                         onPress={() => handleRemovePhoto(index)}
@@ -277,7 +318,12 @@ export default function NewPostScreen() {
           </ScrollView>
 
           <ThemedView style={[styles.footer, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
-            <Button label="Publicar" onPress={handleSubmit} loading={isLoading} disabled={photos.length === 0} />
+            <Button
+              label={isEditMode ? 'Guardar cambios' : 'Publicar'}
+              onPress={handleSubmit}
+              loading={isLoading}
+              disabled={photos.length === 0}
+            />
           </ThemedView>
         </KeyboardAvoidingView>
       </SafeAreaView>

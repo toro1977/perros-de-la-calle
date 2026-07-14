@@ -31,6 +31,18 @@ type DogPostsActions = {
   resolvePost: (id: string) => Promise<void>;
   fetchMyPosts: (userId: string) => Promise<void>;
   deletePost: (id: string) => Promise<void>;
+  updatePost: (params: {
+    id: string;
+    userId: string;
+    type: DogPostType;
+    existingPhotoUrls: string[];
+    newPhotos: PickedPhoto[];
+    lat: number;
+    lng: number;
+    zoneText: string;
+    breed: string | null;
+    description: string | null;
+  }) => Promise<void>;
 };
 
 export const useDogPostsStore = create<DogPostsState & DogPostsActions>((set, get) => ({
@@ -118,5 +130,31 @@ export const useDogPostsStore = create<DogPostsState & DogPostsActions>((set, ge
       myPosts: state.myPosts.filter(p => p.id !== id),
       posts: state.posts.filter(p => p.id !== id),
     }));
+  },
+
+  updatePost: async ({ id, userId, type, existingPhotoUrls, newPhotos, lat, lng, zoneText, breed, description }) => {
+    set({ isLoading: true });
+    try {
+      const uploadedUrls = newPhotos.length > 0 ? await uploadDogPhotos(userId, newPhotos) : [];
+      const photoUrls = [...existingPhotoUrls, ...uploadedUrls];
+      const { error } = await supabase.rpc('update_dog_post', {
+        p_id: id,
+        p_type: type,
+        p_photo_urls: photoUrls,
+        p_lat: lat,
+        p_lng: lng,
+        p_zone_text: zoneText,
+        p_breed: breed ?? undefined,
+        p_description: description ?? undefined,
+      });
+      if (error) throw error;
+      set(state => ({
+        myPosts: state.myPosts.map(p =>
+          p.id === id ? { ...p, type, photo_urls: photoUrls, breed, description, zone_text: zoneText } : p
+        ),
+      }));
+    } finally {
+      set({ isLoading: false });
+    }
   },
 }));
