@@ -16,7 +16,7 @@ type AuthState = {
 
 type AuthActions = {
   initialize: () => Promise<void>;
-  signUpWithEmail: (email: string, password: string, fullName: string, role: UserRole) => Promise<void>;
+  signUpWithEmail: (email: string, password: string, fullName: string, phone: string, role: UserRole) => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -41,6 +41,7 @@ async function ensureProfile(session: Session) {
   if (existing) return;
 
   const fullName = (session.user.user_metadata.full_name as string | undefined) ?? '';
+  const phone = (session.user.user_metadata.phone as string | undefined) ?? null;
   const role = (session.user.user_metadata.role as UserRole | undefined) ?? 'individual';
 
   const { error: userError } = await supabase
@@ -50,6 +51,7 @@ async function ensureProfile(session: Session) {
         id: session.user.id,
         email: session.user.email!,
         full_name: fullName,
+        phone,
         role,
       },
       { onConflict: 'id', ignoreDuplicates: true }
@@ -94,15 +96,22 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     set({ isInitialized: true });
   },
 
-  signUpWithEmail: async (email, password, fullName, role) => {
+  signUpWithEmail: async (email, password, fullName, phone, role) => {
     set({ isLoading: true, confirmEmailPending: false });
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { full_name: fullName, role } },
+        options: { data: { full_name: fullName, phone, role }, emailRedirectTo: 'perrosdelacalle://' },
       });
       if (error) throw error;
+
+      // Supabase returns a 200 with an empty `identities` array (instead of
+      // an error) when the email is already registered — it does this on
+      // purpose, to avoid leaking which emails exist to an attacker.
+      if (data.user && data.user.identities?.length === 0) {
+        throw new Error('Ya existe una cuenta con este email. Iniciá sesión en vez de crear una nueva.');
+      }
 
       if (data.session) {
         set({ session: data.session });

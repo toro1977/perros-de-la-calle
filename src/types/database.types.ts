@@ -89,6 +89,13 @@ export type Database = {
             referencedRelation: "shelters"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "adoption_dogs_shelter_id_fkey"
+            columns: ["shelter_id"]
+            isOneToOne: false
+            referencedRelation: "shelters_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       dog_posts: {
@@ -99,7 +106,7 @@ export type Database = {
           event_date: string
           id: string
           location: unknown
-          photo_url: string
+          photo_urls: string[]
           status: string
           type: string
           updated_at: string
@@ -113,7 +120,7 @@ export type Database = {
           event_date: string
           id?: string
           location: unknown
-          photo_url: string
+          photo_urls?: string[]
           status?: string
           type: string
           updated_at?: string
@@ -127,7 +134,7 @@ export type Database = {
           event_date?: string
           id?: string
           location?: unknown
-          photo_url?: string
+          photo_urls?: string[]
           status?: string
           type?: string
           updated_at?: string
@@ -197,6 +204,13 @@ export type Database = {
             columns: ["shelter_id"]
             isOneToOne: false
             referencedRelation: "shelters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "donations_shelter_id_fkey"
+            columns: ["shelter_id"]
+            isOneToOne: false
+            referencedRelation: "shelters_public"
             referencedColumns: ["id"]
           },
         ]
@@ -504,6 +518,38 @@ export type Database = {
         }
         Relationships: []
       }
+      shelters_public: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          shelter_name: string | null
+          social_links: string | null
+          verification_status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string | null
+          shelter_name?: string | null
+          social_links?: string | null
+          verification_status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string | null
+          shelter_name?: string | null
+          social_links?: string | null
+          verification_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shelters_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       _postgis_deprecate: {
@@ -640,7 +686,7 @@ export type Database = {
           p_event_date: string
           p_lat: number
           p_lng: number
-          p_photo_url: string
+          p_photo_urls: string[]
           p_type: string
           p_zone_text: string
         }
@@ -781,13 +827,14 @@ export type Database = {
         Args: { p_id: string }
         Returns: {
           breed: string
+          contact_phone: string
           created_at: string
           description: string
           event_date: string
           id: string
           lat: number
           lng: number
-          photo_url: string
+          photo_urls: string[]
           status: string
           type: string
           user_id: string
@@ -806,7 +853,7 @@ export type Database = {
           id: string
           lat: number
           lng: number
-          photo_url: string
+          photo_urls: string[]
           status: string
           type: string
           user_id: string

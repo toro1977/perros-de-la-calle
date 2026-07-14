@@ -13,7 +13,7 @@ export type ThemedTextProps = TextProps & {
     | 'link'
     | 'linkPrimary'
     | 'code'
-    | 'eyebrow'
+    | 'kicker'
     | 'caption';
   themeColor?: ThemeColor;
 };
@@ -35,7 +35,7 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
         type === 'link' && styles.link,
         type === 'linkPrimary' && styles.linkPrimary,
         type === 'code' && styles.code,
-        type === 'eyebrow' && styles.eyebrow,
+        type === 'kicker' && styles.kicker,
         type === 'caption' && styles.caption,
         style,
       ]}
@@ -63,8 +63,8 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 30,
     fontWeight: 800,
-    lineHeight: 36,
-    letterSpacing: -0.5,
+    lineHeight: 34,
+    letterSpacing: -0.8,
   },
   subtitle: {
     fontSize: 22,
@@ -85,11 +85,11 @@ const styles = StyleSheet.create({
     fontWeight: Platform.select({ android: 700 }) ?? 500,
     fontSize: 12,
   },
-  eyebrow: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: 700,
-    letterSpacing: 0.6,
+  kicker: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: 800,
+    letterSpacing: 1.5,
     textTransform: 'uppercase',
   },
   caption: {

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '@/services/supabase';
-import { uploadDogPhoto } from '@/services/dogPhotoUpload';
+import { uploadDogPhotos } from '@/services/dogPhotoUpload';
+import { PickedPhoto } from '@/services/photoPicker';
 import { Database, DogPostType } from '@/types/database.types';
 
 export type DogPostListItem = Database['public']['Functions']['list_dog_posts']['Returns'][number];
@@ -17,8 +18,7 @@ type DogPostsActions = {
   createPost: (params: {
     userId: string;
     type: DogPostType;
-    photoUri: string;
-    photoMimeType: string | null;
+    photos: PickedPhoto[];
     lat: number;
     lng: number;
     zoneText: string;
@@ -54,13 +54,13 @@ export const useDogPostsStore = create<DogPostsState & DogPostsActions>((set, ge
     return data?.[0] ?? null;
   },
 
-  createPost: async ({ userId, type, photoUri, photoMimeType, lat, lng, zoneText, eventDate, breed, description }) => {
+  createPost: async ({ userId, type, photos, lat, lng, zoneText, eventDate, breed, description }) => {
     set({ isLoading: true });
     try {
-      const photoUrl = await uploadDogPhoto(userId, photoUri, photoMimeType);
+      const photoUrls = await uploadDogPhotos(userId, photos);
       const { error } = await supabase.rpc('create_dog_post', {
         p_type: type,
-        p_photo_url: photoUrl,
+        p_photo_urls: photoUrls,
         p_lat: lat,
         p_lng: lng,
         p_zone_text: zoneText,

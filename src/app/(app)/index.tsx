@@ -5,21 +5,24 @@ import { Link, useFocusEffect } from 'expo-router';
 import { FlatList, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MapPostsView } from '@/components/map-posts-view';
+import { Skeleton } from '@/components/skeleton';
+import { StatusBadge } from '@/components/status-badge';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { DOG_POST_TYPE_META } from '@/constants/dog-post-types';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { getCurrentLocation } from '@/services/location';
 import { useAuthStore } from '@/stores/authStore';
 import { DogPostListItem, useDogPostsStore } from '@/stores/dogPostsStore';
 import { DogPostType } from '@/types/database.types';
+import { tapHaptic } from '@/utils/haptics';
+import { formatRelativeTime } from '@/utils/relative-time';
 
-const FILTERS: { label: string; value: DogPostType | undefined; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { label: 'Todos', value: undefined, icon: 'apps-outline' },
-  { label: 'Perdidos', value: 'lost', icon: 'help-buoy-outline' },
-  { label: 'Encontrados', value: 'found', icon: 'checkmark-circle-outline' },
-  { label: 'Callejeros', value: 'stray', icon: 'paw-outline' },
+const FILTERS: { label: string; value: DogPostType | undefined }[] = [
+  { label: 'Todos', value: undefined },
+  { label: 'Perdidos', value: 'lost' },
+  { label: 'Encontrados', value: 'found' },
+  { label: 'Callejeros', value: 'stray' },
 ];
 
 export default function PostsListScreen() {
@@ -34,9 +37,11 @@ export default function PostsListScreen() {
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
 
   useEffect(() => {
-    getCurrentLocation().then(loc => {
-      if (loc) setCoords({ lat: loc.lat, lng: loc.lng });
-    });
+    getCurrentLocation()
+      .then(loc => {
+        if (loc) setCoords({ lat: loc.lat, lng: loc.lng });
+      })
+      .catch(() => {});
   }, []);
 
   const reload = useCallback(() => {
@@ -46,34 +51,40 @@ export default function PostsListScreen() {
   useFocusEffect(reload);
 
   function renderItem({ item }: { item: DogPostListItem }) {
-    const meta = DOG_POST_TYPE_META[item.type as DogPostType];
-    const toneColor = theme[meta.tone];
-    const toneSoft = theme[`${meta.tone}Soft` as const];
+    const secondaryParts = [
+      item.distance_km != null ? `a ${item.distance_km} km` : null,
+      item.breed || null,
+    ].filter(Boolean);
+
     return (
       <Link href={{ pathname: '/post/[id]', params: { id: item.id } }} asChild>
         <Pressable
+          onPress={tapHaptic}
           style={({ pressed }) =>
-            StyleSheet.flatten([styles.card, { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.8 : 1 }])
+            StyleSheet.flatten([styles.card, { backgroundColor: theme.surface, borderColor: theme.border, opacity: pressed ? 0.9 : 1 }])
           }
         >
-          <Image source={{ uri: item.photo_url }} style={styles.thumbnail} contentFit="cover" />
-          <ThemedView style={styles.cardInfo}>
-            <ThemedView style={[styles.badge, { backgroundColor: toneSoft }]}>
-              <Ionicons name={meta.icon} size={12} color={toneColor} />
-              <ThemedText type="caption" style={{ color: toneColor }}>
-                {meta.label}
+          <ThemedView style={styles.photoWrap}>
+            <Image source={{ uri: item.photo_urls[0] }} style={styles.photo} contentFit="cover" />
+            <ThemedView style={styles.photoBadge}>
+              <StatusBadge type={item.type as DogPostType} variant="solid" size="sm" />
+            </ThemedView>
+            <ThemedView style={styles.photoTimestamp}>
+              <ThemedText type="caption" style={styles.timestampText}>
+                {formatRelativeTime(item.created_at)}
               </ThemedText>
             </ThemedView>
+          </ThemedView>
+          <ThemedView style={styles.cardInfo}>
             <ThemedText type="default" style={styles.cardZone}>
               {item.zone_text}
             </ThemedText>
-            {item.distance_km != null && (
+            {secondaryParts.length > 0 && (
               <ThemedText type="small" themeColor="textSecondary">
-                a {item.distance_km} km
+                {secondaryParts.join(' · ')}
               </ThemedText>
             )}
           </ThemedView>
-          <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
         </Pressable>
       </Link>
     );
@@ -83,7 +94,10 @@ export default function PostsListScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ThemedView style={styles.header}>
-          <ThemedView>
+          <ThemedView style={styles.headerText}>
+            <ThemedText type="kicker" themeColor="textSecondary">
+              Cerca tuyo
+            </ThemedText>
             <ThemedText type="title" style={styles.title}>
               Perros de la calle
             </ThemedText>
@@ -107,16 +121,12 @@ export default function PostsListScreen() {
           </ThemedView>
         </ThemedView>
 
-        <FlatList
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          data={FILTERS}
-          keyExtractor={f => f.label}
-          contentContainerStyle={styles.filters}
-          renderItem={({ item: f }) => {
+        <ThemedView style={styles.filters}>
+          {FILTERS.map(f => {
             const active = filter === f.value;
             return (
               <Pressable
+                key={f.label}
                 style={[
                   styles.filterChip,
                   {
@@ -124,16 +134,22 @@ export default function PostsListScreen() {
                     borderColor: active ? theme.accent : theme.border,
                   },
                 ]}
-                onPress={() => setFilter(f.value)}
+                onPress={() => {
+                  tapHaptic();
+                  setFilter(f.value);
+                }}
               >
-                <Ionicons name={f.icon} size={14} color={active ? theme.onAccent : theme.textSecondary} />
-                <ThemedText type="small" style={{ color: active ? theme.onAccent : theme.text, fontWeight: '600' }}>
+                <ThemedText
+                  type="small"
+                  numberOfLines={1}
+                  style={{ color: active ? theme.onAccent : theme.text, fontWeight: '600' }}
+                >
                   {f.label}
                 </ThemedText>
               </Pressable>
             );
-          }}
-        />
+          })}
+        </ThemedView>
 
         {profile?.role === 'shelter' && (
           <ThemedView style={[styles.banner, { backgroundColor: theme.accentSoft, borderColor: theme.accent }]}>
@@ -145,22 +161,33 @@ export default function PostsListScreen() {
         )}
 
         {viewMode === 'list' ? (
-          <FlatList
-            data={posts}
-            keyExtractor={item => item.id}
-            renderItem={renderItem}
-            onRefresh={reload}
-            refreshing={isLoading}
-            contentContainerStyle={styles.listContent}
-            ListEmptyComponent={
-              <ThemedView style={styles.empty}>
-                <Ionicons name="paw-outline" size={32} color={theme.textSecondary} />
-                <ThemedText type="default" themeColor="textSecondary" style={styles.emptyText}>
-                  {isLoading ? 'Cargando...' : 'No hay avisos por acá todavía.'}
-                </ThemedText>
-              </ThemedView>
-            }
-          />
+          isLoading && posts.length === 0 ? (
+            <ThemedView style={styles.listContent}>
+              {[0, 1, 2].map(i => (
+                <PostCardSkeleton key={i} />
+              ))}
+            </ThemedView>
+          ) : (
+            <FlatList
+              data={posts}
+              keyExtractor={item => item.id}
+              renderItem={renderItem}
+              onRefresh={reload}
+              refreshing={isLoading}
+              contentContainerStyle={styles.listContent}
+              ListEmptyComponent={
+                <ThemedView style={styles.empty}>
+                  <Ionicons name="paw-outline" size={32} color={theme.textSecondary} />
+                  <ThemedText type="default" style={styles.emptyTitle}>
+                    Todavía no hay avisos por acá
+                  </ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.emptyText}>
+                    ¿Viste un perro perdido, encontrado o callejero? Sé el primero en publicarlo.
+                  </ThemedText>
+                </ThemedView>
+              }
+            />
+          )
         ) : (
           <ThemedView style={styles.mapWrap}>
             <MapPostsView posts={posts} center={coords} />
@@ -168,14 +195,30 @@ export default function PostsListScreen() {
         )}
 
         <Link href="/new-post" asChild>
-          <Pressable style={StyleSheet.flatten([styles.fab, { backgroundColor: theme.accent }])}>
-            <Ionicons name="add" size={20} color={theme.onAccent} />
-            <ThemedText type="default" style={[styles.fabText, { color: theme.onAccent }]}>
+          <Pressable
+            onPress={tapHaptic}
+            style={StyleSheet.flatten([styles.fab, { backgroundColor: theme.danger }])}
+          >
+            <Ionicons name="add" size={20} color="#FFFFFF" />
+            <ThemedText type="default" style={styles.fabText}>
               Publicar
             </ThemedText>
           </Pressable>
         </Link>
       </SafeAreaView>
+    </ThemedView>
+  );
+}
+
+function PostCardSkeleton() {
+  const theme = useTheme();
+  return (
+    <ThemedView style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <Skeleton style={styles.photoWrap} />
+      <ThemedView style={styles.cardInfo}>
+        <Skeleton style={[styles.skeletonLine, styles.skeletonLineWide]} />
+        <Skeleton style={[styles.skeletonLine, styles.skeletonLineNarrow]} />
+      </ThemedView>
     </ThemedView>
   );
 }
@@ -197,9 +240,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     paddingVertical: Spacing.three,
   },
+  headerText: {
+    gap: 4,
+  },
   title: {
-    fontSize: 24,
-    lineHeight: 28,
+    marginTop: 2,
   },
   headerActions: {
     flexDirection: 'row',
@@ -213,17 +258,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   filters: {
+    flexDirection: 'row',
     gap: Spacing.two,
     paddingBottom: Spacing.three,
   },
   filterChip: {
-    flexDirection: 'row',
+    flex: 1,
     alignItems: 'center',
-    gap: Spacing.one,
-    borderRadius: Radius.full,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two - 2,
+    justifyContent: 'center',
+    borderRadius: 10,
+    borderWidth: 1.5,
+    paddingHorizontal: Spacing.one,
+    paddingVertical: Spacing.two,
   },
   banner: {
     flexDirection: 'row',
@@ -235,41 +281,61 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.three,
   },
   listContent: {
-    gap: Spacing.two,
+    gap: Spacing.four,
     paddingBottom: Spacing.six,
   },
   card: {
-    flexDirection: 'row',
-    gap: Spacing.three,
-    padding: Spacing.two,
-    borderRadius: Radius.md,
-    alignItems: 'center',
+    borderRadius: 18,
+    borderWidth: 1,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 1,
   },
-  thumbnail: {
-    width: 60,
-    height: 60,
-    borderRadius: Radius.sm,
+  photoWrap: {
+    width: '100%',
+    height: 190,
   },
-  cardInfo: {
-    flex: 1,
-    gap: 4,
+  photo: {
+    width: '100%',
+    height: '100%',
   },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    alignSelf: 'flex-start',
+  photoBadge: {
+    position: 'absolute',
+    top: Spacing.two,
+    left: Spacing.two,
+    backgroundColor: 'transparent',
+  },
+  photoTimestamp: {
+    position: 'absolute',
+    top: Spacing.two,
+    right: Spacing.two,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: Radius.full,
     paddingHorizontal: Spacing.two,
     paddingVertical: 3,
   },
+  timestampText: {
+    color: '#FFFFFF',
+  },
+  cardInfo: {
+    gap: 4,
+    padding: Spacing.three,
+  },
   cardZone: {
-    fontWeight: '600',
+    fontWeight: '700',
   },
   empty: {
     alignItems: 'center',
     gap: Spacing.two,
     marginTop: Spacing.six,
+    paddingHorizontal: Spacing.four,
+  },
+  emptyTitle: {
+    fontWeight: '700',
+    textAlign: 'center',
   },
   emptyText: {
     textAlign: 'center',
@@ -292,11 +358,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
+    shadowOpacity: 0.25,
     shadowRadius: 10,
     elevation: 4,
   },
   fabText: {
     fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  skeletonLine: {
+    height: 14,
+    borderRadius: Radius.sm,
+  },
+  skeletonLineWide: {
+    width: '70%',
+  },
+  skeletonLineNarrow: {
+    width: '40%',
   },
 });

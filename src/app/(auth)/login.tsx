@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
-import { Pressable, StyleSheet } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '@/components/button';
 import { TextField } from '@/components/text-field';
@@ -10,6 +10,7 @@ import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuthStore } from '@/stores/authStore';
+import { scrollFieldIntoView } from '@/utils/scroll-to-input';
 
 export default function LoginScreen() {
   const theme = useTheme();
@@ -18,6 +19,9 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
   const signInWithEmail = useAuthStore(s => s.signInWithEmail);
   const isLoading = useAuthStore(s => s.isLoading);
+  const scrollRef = useRef<ScrollView>(null);
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
 
   async function handleSubmit() {
     setError(null);
@@ -31,55 +35,63 @@ export default function LoginScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={[styles.hero, { backgroundColor: theme.accent }]}>
-          <Ionicons name="paw" size={44} color={theme.onAccent} />
-          <ThemedText type="title" style={[styles.appName, { color: theme.onAccent }]}>
-            Perros de la calle
-          </ThemedText>
-          <ThemedText type="default" style={[styles.tagline, { color: theme.onAccent }]}>
-            Perdidos, encontrados y en adopción — cerca tuyo
-          </ThemedText>
-        </ThemedView>
-
-        <ThemedView style={styles.form}>
-          <TextField
-            label="Email"
-            placeholder="tu@email.com"
-            autoCapitalize="none"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-          />
-          <TextField
-            label="Contraseña"
-            placeholder="••••••••"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-          />
-
-          {error && (
-            <ThemedView style={[styles.errorBox, { backgroundColor: theme.dangerSoft }]}>
-              <Ionicons name="alert-circle" size={16} color={theme.danger} />
-              <ThemedText type="small" style={{ color: theme.danger, flex: 1 }}>
-                {error}
+        <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <ScrollView ref={scrollRef} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+            <ThemedView style={[styles.hero, { backgroundColor: theme.accent }]}>
+              <Ionicons name="paw" size={44} color={theme.onAccent} />
+              <ThemedText type="title" style={[styles.appName, { color: theme.onAccent }]}>
+                Perros de la calle
+              </ThemedText>
+              <ThemedText type="default" style={[styles.tagline, { color: theme.onAccent }]}>
+                Perdidos, encontrados y en adopción — cerca tuyo
               </ThemedText>
             </ThemedView>
-          )}
 
-          <Button label="Ingresar" onPress={handleSubmit} loading={isLoading} />
+            <ThemedView style={styles.form}>
+              <TextField
+                ref={emailRef}
+                label="Email"
+                placeholder="tu@email.com"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                value={email}
+                onChangeText={setEmail}
+                onFocus={() => scrollFieldIntoView(scrollRef.current, emailRef.current)}
+              />
+              <TextField
+                ref={passwordRef}
+                label="Contraseña"
+                placeholder="Tu contraseña"
+                secureTextEntry
+                value={password}
+                onChangeText={setPassword}
+                onFocus={() => scrollFieldIntoView(scrollRef.current, passwordRef.current)}
+              />
 
-          {/* Link asChild clones this Pressable — keep its style flat, never an
-              array (see StyleSheet.flatten note in themed-view.tsx). */}
-          <Link href="/(auth)/register" asChild>
-            <Pressable style={StyleSheet.flatten([styles.registerLink])}>
-              <ThemedText type="default" themeColor="textSecondary">
-                ¿No tenés cuenta?{' '}
-              </ThemedText>
-              <ThemedText type="linkPrimary">Registrate</ThemedText>
-            </Pressable>
-          </Link>
-        </ThemedView>
+              {error && (
+                <ThemedView style={[styles.errorBox, { backgroundColor: theme.dangerSoft }]}>
+                  <Ionicons name="alert-circle" size={16} color={theme.danger} />
+                  <ThemedText type="small" style={{ color: theme.danger, flex: 1 }}>
+                    {error}
+                  </ThemedText>
+                </ThemedView>
+              )}
+
+              <Button label="Ingresar" onPress={handleSubmit} loading={isLoading} />
+
+              {/* Link asChild clones this Pressable — keep its style flat, never an
+                  array (see StyleSheet.flatten note in themed-view.tsx). */}
+              <Link href="/(auth)/register" asChild>
+                <Pressable style={StyleSheet.flatten([styles.registerLink])}>
+                  <ThemedText type="default" themeColor="textSecondary">
+                    ¿No tenés cuenta?{' '}
+                  </ThemedText>
+                  <ThemedText type="linkPrimary">Registrate</ThemedText>
+                </Pressable>
+              </Link>
+            </ThemedView>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </ThemedView>
   );
@@ -94,6 +106,12 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: '100%',
     maxWidth: MaxContentWidth,
+  },
+  flex: {
+    flex: 1,
+  },
+  scroll: {
+    flexGrow: 1,
   },
   hero: {
     alignItems: 'center',

@@ -1,14 +1,19 @@
-import { useState } from 'react';
+import { forwardRef, useState } from 'react';
 import { StyleSheet, TextInput, TextInputProps, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
-type Props = TextInputProps & {
+export type TextFieldProps = TextInputProps & {
   label: string;
 };
 
-export function TextField({ label, style, onFocus, onBlur, ...rest }: Props) {
+type Props = TextFieldProps;
+
+export const TextField = forwardRef<TextInput, Props>(function TextField(
+  { label, style, onFocus, onBlur, ...rest },
+  ref
+) {
   const theme = useTheme();
   const [isFocused, setIsFocused] = useState(false);
 
@@ -18,6 +23,7 @@ export function TextField({ label, style, onFocus, onBlur, ...rest }: Props) {
         {label}
       </ThemedText>
       <TextInput
+        ref={ref}
         style={[
           styles.input,
           {
@@ -41,7 +47,7 @@ export function TextField({ label, style, onFocus, onBlur, ...rest }: Props) {
       />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

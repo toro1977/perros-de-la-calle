@@ -14,6 +14,11 @@ function buildZoneText(place: Location.LocationGeocodedAddress | undefined) {
   return [place.city ?? place.subregion, place.region].filter(Boolean).join(', ') || 'Ubicación sin identificar';
 }
 
+export async function reverseGeocode(lat: number, lng: number): Promise<string> {
+  const [place] = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
+  return buildZoneText(place);
+}
+
 export async function getCurrentLocation(): Promise<CurrentLocation | null> {
   const permission = await Location.requestForegroundPermissionsAsync();
   if (permission.status !== 'granted') {

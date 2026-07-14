@@ -1,6 +1,7 @@
 /**
  * Design tokens for Perros de la calle.
- * Warm, earthy palette (terracotta accent) — distinct from Doggers' cool blue.
+ * Paper + ink palette — the accent is ink (text color), and state colors
+ * (danger/success/warning) carry the real visual signal.
  */
 
 import '@/global.css';
@@ -9,21 +10,22 @@ import { Platform } from 'react-native';
 
 export const Colors = {
   light: {
-    text: '#241D16',
-    textSecondary: '#7C7164',
-    background: '#FBFAF7',
-    backgroundElement: '#F2EEE6',
-    backgroundSelected: '#E9E2D5',
-    border: '#E4DDCF',
-    accent: '#C6551F',
-    accentSoft: '#FBEADD',
+    text: '#1A1815',
+    textSecondary: '#78716A',
+    background: '#FCFCFA',
+    backgroundElement: '#F4F3EF',
+    backgroundSelected: '#ECEAE3',
+    surface: '#FFFFFF',
+    border: '#E5E3DD',
+    accent: '#1A1815',
+    accentSoft: '#ECEAE3',
     onAccent: '#FFFFFF',
-    success: '#3D8F52',
-    successSoft: '#E5F3E8',
-    danger: '#C6432B',
-    dangerSoft: '#FBE7E2',
-    warning: '#B5790F',
-    warningSoft: '#FAF0DB',
+    success: '#2E9E5B',
+    successSoft: '#E3F4EA',
+    danger: '#E63912',
+    dangerSoft: '#FCE7DF',
+    warning: '#E8920C',
+    warningSoft: '#FCEED3',
   },
   dark: {
     text: '#F4EFE7',
@@ -31,16 +33,17 @@ export const Colors = {
     background: '#171310',
     backgroundElement: '#211C16',
     backgroundSelected: '#2B241C',
+    surface: '#211C16',
     border: '#332C22',
-    accent: '#E27A43',
-    accentSoft: '#3A2515',
+    accent: '#F4EFE7',
+    accentSoft: '#2B241C',
     onAccent: '#171310',
-    success: '#5CB374',
-    successSoft: '#1D2E20',
-    danger: '#E2705A',
-    dangerSoft: '#341E19',
-    warning: '#D6A23E',
-    warningSoft: '#332813',
+    success: '#4FCE86',
+    successSoft: '#1B3325',
+    danger: '#FF6B47',
+    dangerSoft: '#3A1D14',
+    warning: '#FFB13D',
+    warningSoft: '#3A2A10',
   },
 } as const;
 

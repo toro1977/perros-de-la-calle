@@ -2,8 +2,9 @@ import { ActivityIndicator, Pressable, PressableProps, StyleSheet } from 'react-
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { tapHaptic } from '@/utils/haptics';
 
-type Variant = 'primary' | 'secondary' | 'ghost';
+type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
 type Props = Omit<PressableProps, 'style'> & {
   label: string;
@@ -12,13 +13,19 @@ type Props = Omit<PressableProps, 'style'> & {
   icon?: React.ReactNode;
 };
 
-export function Button({ label, variant = 'primary', loading, icon, disabled, ...rest }: Props) {
+export function Button({ label, variant = 'primary', loading, icon, disabled, onPress, ...rest }: Props) {
   const theme = useTheme();
   const isDisabled = disabled || loading;
 
   const backgroundColor =
-    variant === 'primary' ? theme.accent : variant === 'secondary' ? theme.backgroundElement : 'transparent';
-  const textColor = variant === 'primary' ? theme.onAccent : theme.text;
+    variant === 'primary'
+      ? theme.accent
+      : variant === 'danger'
+        ? theme.danger
+        : variant === 'secondary'
+          ? theme.backgroundElement
+          : 'transparent';
+  const textColor = variant === 'primary' || variant === 'danger' ? theme.onAccent : theme.text;
   const borderColor = variant === 'ghost' ? theme.border : 'transparent';
 
   return (
@@ -27,6 +34,10 @@ export function Button({ label, variant = 'primary', loading, icon, disabled, ..
     // StyleSheet.flatten note in themed-view.tsx.
     <Pressable
       disabled={isDisabled}
+      onPress={e => {
+        tapHaptic();
+        onPress?.(e);
+      }}
       style={({ pressed }) =>
         StyleSheet.flatten([
           styles.base,
