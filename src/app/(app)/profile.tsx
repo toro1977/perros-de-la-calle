@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BottomTabBar, TAB_BAR_HEIGHT } from '@/components/bottom-tab-bar';
@@ -116,6 +117,12 @@ export default function ProfileScreen() {
             )}
 
             <Button label="Guardar cambios" onPress={handleSave} loading={isLoading} />
+            <Button
+              label="Mis avisos"
+              variant="ghost"
+              onPress={() => router.push('/my-posts')}
+              icon={<Ionicons name="albums-outline" size={18} color={theme.text} />}
+            />
             <Button
               label="Cerrar sesión"
               variant="ghost"

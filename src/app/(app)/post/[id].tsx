@@ -2,14 +2,25 @@ import { useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as ExpoLinking from 'expo-linking';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Linking, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
+import {
+  Linking,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  useWindowDimensions,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '@/components/button';
 import { Skeleton } from '@/components/skeleton';
 import { StatusBadge } from '@/components/status-badge';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { DOG_POST_TYPE_META } from '@/constants/dog-post-types';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuthStore } from '@/stores/authStore';
@@ -22,6 +33,16 @@ function buildWhatsAppUrl(e164Phone: string, zoneText: string) {
   const digits = e164Phone.replace(/\D/g, '');
   const message = `Hola! Vi tu aviso de un perro en ${zoneText} en la app Perros de la calle.`;
   return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+}
+
+// Deep link only opens the post for people who already have the app
+// installed — there's no web fallback yet, so the message text carries
+// the useful info (type, zona, raza) on its own for everyone else.
+function buildShareMessage(post: DogPostDetail) {
+  const typeLabel = DOG_POST_TYPE_META[post.type as DogPostType].label;
+  const breedPart = post.breed ? ` · ${post.breed}` : '';
+  const link = ExpoLinking.createURL(`/post/${post.id}`);
+  return `${typeLabel} en ${post.zone_text}${breedPart}. Mirá el aviso en Perros de la calle: ${link}`;
 }
 
 export default function PostDetailScreen() {
@@ -53,6 +74,11 @@ export default function PostDetailScreen() {
     } finally {
       setIsResolving(false);
     }
+  }
+
+  async function handleShare() {
+    if (!post) return;
+    await Share.share({ message: buildShareMessage(post) });
   }
 
   async function handleContact() {
@@ -109,6 +135,15 @@ export default function PostDetailScreen() {
               accessibilityLabel="Volver"
             >
               <Ionicons name="chevron-back" size={22} color="#fff" />
+            </Pressable>
+            <Pressable
+              style={[styles.backButton, { backgroundColor: 'rgba(0,0,0,0.45)' }]}
+              onPress={handleShare}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Compartir aviso"
+            >
+              <Ionicons name="share-outline" size={20} color="#fff" />
             </Pressable>
           </SafeAreaView>
           <ThemedView style={styles.photoFooter}>
@@ -213,7 +248,10 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     paddingHorizontal: Spacing.three,
+    backgroundColor: 'transparent',
   },
   backButton: {
     width: 38,

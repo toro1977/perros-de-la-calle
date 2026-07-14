@@ -6,9 +6,11 @@ import { Database, DogPostType } from '@/types/database.types';
 
 export type DogPostListItem = Database['public']['Functions']['list_dog_posts']['Returns'][number];
 export type DogPostDetail = Database['public']['Functions']['get_dog_post']['Returns'][number];
+export type MyDogPost = Database['public']['Tables']['dog_posts']['Row'];
 
 type DogPostsState = {
   posts: DogPostListItem[];
+  myPosts: MyDogPost[];
   isLoading: boolean;
 };
 
@@ -27,10 +29,13 @@ type DogPostsActions = {
     description: string | null;
   }) => Promise<void>;
   resolvePost: (id: string) => Promise<void>;
+  fetchMyPosts: (userId: string) => Promise<void>;
+  deletePost: (id: string) => Promise<void>;
 };
 
 export const useDogPostsStore = create<DogPostsState & DogPostsActions>((set, get) => ({
   posts: [],
+  myPosts: [],
   isLoading: false,
 
   fetchPosts: async params => {
@@ -79,5 +84,39 @@ export const useDogPostsStore = create<DogPostsState & DogPostsActions>((set, ge
     const { error } = await supabase.from('dog_posts').update({ status: 'resolved' }).eq('id', id);
     if (error) throw error;
     set(state => ({ posts: state.posts.filter(p => p.id !== id) }));
+  },
+
+  fetchMyPosts: async userId => {
+    set({ isLoading: true });
+    try {
+      const { data, error } = await supabase
+        .from('dog_posts')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      set({ myPosts: data ?? [] });
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  deletePost: async id => {
+    const post = get().myPosts.find(p => p.id === id);
+    // Photo paths live after the bucket name in the public URL
+    // (".../object/public/dog-photos/<userId>/<file>") — storage.remove
+    // wants just that "<userId>/<file>" tail.
+    const paths = (post?.photo_urls ?? [])
+      .map(url => url.split('/dog-photos/')[1])
+      .filter((p): p is string => !!p);
+    if (paths.length > 0) {
+      await supabase.storage.from('dog-photos').remove(paths);
+    }
+    const { error } = await supabase.from('dog_posts').delete().eq('id', id);
+    if (error) throw error;
+    set(state => ({
+      myPosts: state.myPosts.filter(p => p.id !== id),
+      posts: state.posts.filter(p => p.id !== id),
+    }));
   },
 }));
