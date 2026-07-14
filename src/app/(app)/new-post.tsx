@@ -98,7 +98,13 @@ export default function NewPostScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ThemedView style={styles.header}>
-          <Pressable style={[styles.backButton, { backgroundColor: theme.backgroundElement }]} onPress={() => router.back()} hitSlop={8}>
+          <Pressable
+            style={[styles.backButton, { backgroundColor: theme.backgroundElement }]}
+            onPress={() => router.back()}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Volver"
+          >
             <Ionicons name="chevron-back" size={22} color={theme.text} />
           </Pressable>
           <ThemedText type="subtitle">Publicar aviso</ThemedText>
@@ -164,7 +170,13 @@ export default function NewPostScreen() {
               <ThemedView style={styles.photosBlock}>
                 <ThemedView style={styles.photoHeroWrap}>
                   <Image source={{ uri: photos[0].uri }} style={styles.photoPreview} contentFit="cover" />
-                  <Pressable style={styles.photoRemoveBadge} onPress={() => handleRemovePhoto(0)} hitSlop={8}>
+                  <Pressable
+                    style={styles.photoRemoveBadge}
+                    onPress={() => handleRemovePhoto(0)}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Sacar esta foto"
+                  >
                     <Ionicons name="close" size={16} color="#FFFFFF" />
                   </Pressable>
                   <ThemedView style={styles.photoCountBadge}>
@@ -183,7 +195,13 @@ export default function NewPostScreen() {
                   {photos.map((p, index) => (
                     <ThemedView key={p.uri} style={styles.thumbWrap}>
                       <Image source={{ uri: p.uri }} style={styles.thumbImage} contentFit="cover" />
-                      <Pressable style={styles.thumbRemove} onPress={() => handleRemovePhoto(index)} hitSlop={6}>
+                      <Pressable
+                        style={styles.thumbRemove}
+                        onPress={() => handleRemovePhoto(index)}
+                        hitSlop={6}
+                        accessibilityRole="button"
+                        accessibilityLabel="Sacar esta foto"
+                      >
                         <Ionicons name="close" size={12} color="#FFFFFF" />
                       </Pressable>
                     </ThemedView>
@@ -192,6 +210,8 @@ export default function NewPostScreen() {
                     <Pressable
                       style={[styles.thumbAdd, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
                       onPress={handleAddPhotos}
+                      accessibilityRole="button"
+                      accessibilityLabel="Agregar otra foto"
                     >
                       <Ionicons name="add" size={22} color={theme.textSecondary} />
                     </Pressable>

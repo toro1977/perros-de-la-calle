@@ -11,7 +11,9 @@ import { Platform } from 'react-native';
 export const Colors = {
   light: {
     text: '#1A1815',
-    textSecondary: '#78716A',
+    // #78716A read at 4.33:1 against backgroundElement — just under the
+    // WCAG AA minimum (4.5:1) for normal text. Darkened slightly to clear it.
+    textSecondary: '#736C64',
     background: '#FCFCFA',
     backgroundElement: '#F4F3EF',
     backgroundSelected: '#ECEAE3',
@@ -28,16 +30,19 @@ export const Colors = {
     warningSoft: '#FCEED3',
   },
   dark: {
-    text: '#F4EFE7',
-    textSecondary: '#AFA491',
-    background: '#171310',
-    backgroundElement: '#211C16',
-    backgroundSelected: '#2B241C',
-    surface: '#211C16',
-    border: '#332C22',
-    accent: '#F4EFE7',
-    accentSoft: '#2B241C',
-    onAccent: '#171310',
+    // Neutral charcoal, not warm brown — light mode is neutral-to-cool
+    // paper (#FCFCFA), so dark mode should be its neutral mirror, not a
+    // different (warmer) identity.
+    text: '#F0F0F0',
+    textSecondary: '#A8A8A8',
+    background: '#1A1A1A',
+    backgroundElement: '#242424',
+    backgroundSelected: '#2E2E2E',
+    surface: '#242424',
+    border: '#333333',
+    accent: '#F0F0F0',
+    accentSoft: '#2E2E2E',
+    onAccent: '#18181A',
     success: '#4FCE86',
     successSoft: '#1B3325',
     danger: '#FF6B47',

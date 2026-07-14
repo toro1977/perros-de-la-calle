@@ -62,7 +62,13 @@ export function LocationPickerModal({ visible, initialLocation, onConfirm, onClo
         </ThemedView>
 
         <SafeAreaView edges={['top']} style={styles.topBar}>
-          <Pressable style={[styles.closeButton, { backgroundColor: theme.surface }]} onPress={onClose} hitSlop={8}>
+          <Pressable
+            style={[styles.closeButton, { backgroundColor: theme.surface }]}
+            onPress={onClose}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Cerrar"
+          >
             <Ionicons name="close" size={22} color={theme.text} />
           </Pressable>
         </SafeAreaView>

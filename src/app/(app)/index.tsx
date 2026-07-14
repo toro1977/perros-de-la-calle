@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Link, useFocusEffect } from 'expo-router';
-import { FlatList, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { Alert, FlatList, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MapPostsView } from '@/components/map-posts-view';
 import { Skeleton } from '@/components/skeleton';
@@ -36,6 +36,13 @@ export default function PostsListScreen() {
   const [filter, setFilter] = useState<DogPostType | undefined>(undefined);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+
+  function handleSignOut() {
+    Alert.alert('Cerrar sesión', '¿Seguro que querés cerrar sesión?', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Cerrar sesión', style: 'destructive', onPress: signOut },
+    ]);
+  }
 
   useEffect(() => {
     getCurrentLocation()
@@ -77,7 +84,7 @@ export default function PostsListScreen() {
             </ThemedView>
           </ThemedView>
           <ThemedView style={styles.cardInfo}>
-            <ThemedText type="default" numberOfLines={1} style={styles.cardZone}>
+            <ThemedText type="defaultBold" numberOfLines={1}>
               {item.zone_text}
             </ThemedText>
             {secondaryParts.length > 0 && (
@@ -113,10 +120,18 @@ export default function PostsListScreen() {
               style={[styles.iconButton, { backgroundColor: theme.backgroundElement }]}
               onPress={() => setViewMode(m => (m === 'list' ? 'map' : 'list'))}
               hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={viewMode === 'list' ? 'Ver mapa' : 'Ver lista'}
             >
               <Ionicons name={viewMode === 'list' ? 'map-outline' : 'list-outline'} size={20} color={theme.text} />
             </Pressable>
-            <Pressable style={[styles.iconButton, { backgroundColor: theme.backgroundElement }]} onPress={signOut} hitSlop={8}>
+            <Pressable
+              style={[styles.iconButton, { backgroundColor: theme.backgroundElement }]}
+              onPress={handleSignOut}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Cerrar sesión"
+            >
               <Ionicons name="log-out-outline" size={20} color={theme.text} />
             </Pressable>
           </ThemedView>
@@ -327,9 +342,6 @@ const styles = StyleSheet.create({
   cardInfo: {
     gap: 4,
     padding: Spacing.three,
-  },
-  cardZone: {
-    fontWeight: '700',
   },
   empty: {
     alignItems: 'center',

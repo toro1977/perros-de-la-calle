@@ -80,7 +80,13 @@ export default function RegisterScreen() {
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView ref={scrollRef} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-            <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={12}>
+            <Pressable
+              onPress={() => router.back()}
+              style={styles.backButton}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Volver"
+            >
               <Ionicons name="chevron-back" size={22} color={theme.text} />
             </Pressable>
 

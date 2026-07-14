@@ -6,6 +6,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Linking, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '@/components/button';
+import { Skeleton } from '@/components/skeleton';
 import { StatusBadge } from '@/components/status-badge';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -14,6 +15,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useAuthStore } from '@/stores/authStore';
 import { DogPostDetail, useDogPostsStore } from '@/stores/dogPostsStore';
 import { DogPostType } from '@/types/database.types';
+import { formatEventDate } from '@/utils/format-date';
 import { normalizeArPhone } from '@/utils/phone';
 
 function buildWhatsAppUrl(e164Phone: string, zoneText: string) {
@@ -67,11 +69,13 @@ export default function PostDetailScreen() {
   if (!post) {
     return (
       <ThemedView style={styles.container}>
-        <SafeAreaView style={styles.centered}>
-          <ThemedText type="default" themeColor="textSecondary">
-            Cargando...
-          </ThemedText>
-        </SafeAreaView>
+        <Skeleton style={styles.photoWrap} />
+        <ThemedView style={styles.body}>
+          <Skeleton style={styles.skeletonBadge} />
+          <Skeleton style={styles.skeletonTitle} />
+          <Skeleton style={styles.skeletonLine} />
+          <Skeleton style={[styles.skeletonLine, styles.skeletonLineNarrow]} />
+        </ThemedView>
       </ThemedView>
     );
   }
@@ -97,7 +101,13 @@ export default function PostDetailScreen() {
           </ScrollView>
           <LinearGradient colors={['transparent', 'rgba(0,0,0,0.65)']} style={styles.photoGradient} />
           <SafeAreaView edges={['top']} style={styles.photoOverlay}>
-            <Pressable style={[styles.backButton, { backgroundColor: 'rgba(0,0,0,0.45)' }]} onPress={() => router.back()} hitSlop={8}>
+            <Pressable
+              style={[styles.backButton, { backgroundColor: 'rgba(0,0,0,0.45)' }]}
+              onPress={() => router.back()}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Volver"
+            >
               <Ionicons name="chevron-back" size={22} color="#fff" />
             </Pressable>
           </SafeAreaView>
@@ -120,7 +130,7 @@ export default function PostDetailScreen() {
           <ThemedView style={styles.infoList}>
             <ThemedView style={styles.infoRow}>
               <Ionicons name="calendar-outline" size={18} color={theme.textSecondary} />
-              <ThemedText type="default">{post.event_date}</ThemedText>
+              <ThemedText type="default">{formatEventDate(post.event_date)}</ThemedText>
             </ThemedView>
             {post.breed && (
               <ThemedView style={styles.infoRow}>
@@ -267,6 +277,23 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     padding: Spacing.two,
     borderRadius: Radius.sm,
+  },
+  skeletonBadge: {
+    width: 90,
+    height: 24,
+    borderRadius: Radius.full,
+  },
+  skeletonTitle: {
+    width: '70%',
+    height: 30,
+    borderRadius: Radius.sm,
+  },
+  skeletonLine: {
+    height: 16,
+    borderRadius: Radius.sm,
+  },
+  skeletonLineNarrow: {
+    width: '50%',
   },
   footer: {
     borderTopWidth: 1,
