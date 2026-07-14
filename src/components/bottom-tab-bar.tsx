@@ -13,11 +13,14 @@ import { useFeedViewStore } from '@/stores/feedViewStore';
 import { useScrollActivityStore } from '@/stores/scrollActivityStore';
 import { tapHaptic } from '@/utils/haptics';
 
-// Edge-to-edge bar (Instagram/native-iOS style) instead of expo-router's
-// <Tabs> — that needs @react-navigation/bottom-tabs, which isn't
-// installed, and Mapa isn't a real screen (it's a view-mode toggle on
-// "/"), so a stock tab navigator wouldn't map cleanly onto these 5
-// slots anyway.
+// Wide floating bar (near-full-width, unlike the narrow pill variant)
+// instead of expo-router's <Tabs> — that needs
+// @react-navigation/bottom-tabs, which isn't installed, and Mapa isn't
+// a real screen (it's a view-mode toggle on "/"), so a stock tab
+// navigator wouldn't map cleanly onto these 5 slots anyway. Floats
+// above the bottom edge (padding on `wrap`, not `bar`) instead of
+// sitting flush against it — flush read as "stuck to the screen" once
+// we saw it live.
 export function BottomTabBar() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -36,14 +39,11 @@ export function BottomTabBar() {
     compact.value = withTiming(isScrolling ? 1 : 0, { duration: 220 });
   }, [isScrolling, compact]);
 
-  // While scrolling, the bar pulls in from the edges and rounds off —
-  // the same "compact" behaviour iOS 26's own tab bars do — then
-  // settles back to full-width when scrolling stops.
+  // While scrolling, the bar pulls in from the edges a bit — the same
+  // "compact" behaviour iOS 26's own tab bars do — then settles back to
+  // near-full-width when scrolling stops.
   const compactStyle = useAnimatedStyle(() => ({
-    marginHorizontal: compact.value * Spacing.four,
-    borderRadius: compact.value * Radius.lg,
-    borderLeftWidth: compact.value,
-    borderRightWidth: compact.value,
+    marginHorizontal: Spacing.two + compact.value * Spacing.four,
   }));
 
   function goFeed() {
@@ -74,16 +74,12 @@ export function BottomTabBar() {
   }
 
   return (
-    <ThemedView style={styles.wrap} pointerEvents="box-none">
-      <Animated.View style={[styles.bar, { borderColor: theme.border, paddingBottom: insets.bottom + Spacing.two }, compactStyle]}>
+    <ThemedView style={[styles.wrap, { paddingBottom: insets.bottom + Spacing.two }]} pointerEvents="box-none">
+      <Animated.View style={[styles.bar, { borderColor: theme.border }, compactStyle]}>
         <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />
         <ThemedView style={[styles.barTint, { backgroundColor: theme.surface }]} />
 
-        {/* Fixed-height row so the safe-area clearance below (for the
-            home indicator) is its own space, not squeezed into the same
-            box the icons get centered in. */}
-        <ThemedView style={styles.row}>
-          <Pressable
+        <Pressable
             style={({ pressed }) => [styles.tabButton, pressed && { backgroundColor: theme.backgroundElement }]}
             onPress={goFeed}
             accessibilityRole="button"
@@ -146,7 +142,6 @@ export function BottomTabBar() {
               Perfil
             </ThemedText>
           </Pressable>
-        </ThemedView>
       </Animated.View>
     </ThemedView>
   );
@@ -163,17 +158,19 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   bar: {
-    borderTopWidth: 1,
-    paddingHorizontal: Spacing.two,
-    paddingTop: Spacing.two,
-    overflow: 'hidden',
-  },
-  row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
     height: TAB_BAR_HEIGHT,
-    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderRadius: Radius.lg,
+    paddingHorizontal: Spacing.two,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 6,
   },
   // BlurView alone is too translucent over busy photos — this tint
   // sits on top of the blur to keep icon/text contrast readable,
