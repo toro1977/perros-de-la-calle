@@ -56,41 +56,46 @@ export function BottomTabBar() {
         <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />
         <ThemedView style={[styles.barTint, { backgroundColor: theme.surface }]} />
 
-        <Pressable
-          style={({ pressed }) => [styles.tabButton, pressed && { backgroundColor: theme.backgroundElement }]}
-          onPress={() => go('/')}
-          accessibilityRole="button"
-          accessibilityLabel="Feed"
-        >
-          <Ionicons name={isProfile ? 'home-outline' : 'home'} size={24} color={isProfile ? theme.textSecondary : theme.text} />
-          <ThemedText type="caption" style={{ color: isProfile ? theme.textSecondary : theme.text }}>
-            Feed
-          </ThemedText>
-        </Pressable>
+        {/* Fixed-height row so the safe-area clearance below (for the
+            home indicator) is its own space, not squeezed into the same
+            box the icons get centered in. */}
+        <ThemedView style={styles.row}>
+          <Pressable
+            style={({ pressed }) => [styles.tabButton, pressed && { backgroundColor: theme.backgroundElement }]}
+            onPress={() => go('/')}
+            accessibilityRole="button"
+            accessibilityLabel="Feed"
+          >
+            <Ionicons name={isProfile ? 'home-outline' : 'home'} size={24} color={isProfile ? theme.textSecondary : theme.text} />
+            <ThemedText type="caption" style={{ color: isProfile ? theme.textSecondary : theme.text }}>
+              Feed
+            </ThemedText>
+          </Pressable>
 
-        <Pressable
-          style={({ pressed }) => [styles.tabButton, pressed && { backgroundColor: theme.backgroundElement }]}
-          onPress={goPublish}
-          accessibilityRole="button"
-          accessibilityLabel="Publicar aviso"
-        >
-          <Ionicons name="add-circle-outline" size={24} color={theme.text} />
-          <ThemedText type="caption" style={{ color: theme.text }}>
-            Publicar
-          </ThemedText>
-        </Pressable>
+          <Pressable
+            style={({ pressed }) => [styles.tabButton, pressed && { backgroundColor: theme.backgroundElement }]}
+            onPress={goPublish}
+            accessibilityRole="button"
+            accessibilityLabel="Publicar aviso"
+          >
+            <Ionicons name="add-circle-outline" size={24} color={theme.text} />
+            <ThemedText type="caption" style={{ color: theme.text }}>
+              Publicar
+            </ThemedText>
+          </Pressable>
 
-        <Pressable
-          style={({ pressed }) => [styles.tabButton, pressed && { backgroundColor: theme.backgroundElement }]}
-          onPress={() => go('/profile')}
-          accessibilityRole="button"
-          accessibilityLabel="Perfil"
-        >
-          <Ionicons name={isProfile ? 'person' : 'person-outline'} size={24} color={isProfile ? theme.text : theme.textSecondary} />
-          <ThemedText type="caption" style={{ color: isProfile ? theme.text : theme.textSecondary }}>
-            Perfil
-          </ThemedText>
-        </Pressable>
+          <Pressable
+            style={({ pressed }) => [styles.tabButton, pressed && { backgroundColor: theme.backgroundElement }]}
+            onPress={() => go('/profile')}
+            accessibilityRole="button"
+            accessibilityLabel="Perfil"
+          >
+            <Ionicons name={isProfile ? 'person' : 'person-outline'} size={24} color={isProfile ? theme.text : theme.textSecondary} />
+            <ThemedText type="caption" style={{ color: isProfile ? theme.text : theme.textSecondary }}>
+              Perfil
+            </ThemedText>
+          </Pressable>
+        </ThemedView>
       </Animated.View>
     </ThemedView>
   );
@@ -107,15 +112,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   bar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    width: '100%',
-    minHeight: TAB_BAR_HEIGHT,
     borderTopWidth: 1,
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.two,
     overflow: 'hidden',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    height: TAB_BAR_HEIGHT,
+    backgroundColor: 'transparent',
   },
   // BlurView alone is too translucent over busy photos — this tint
   // sits on top of the blur to keep icon/text contrast readable,
