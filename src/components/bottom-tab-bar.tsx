@@ -1,23 +1,44 @@
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { router, usePathname } from 'expo-router';
+import { useEffect } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useScrollActivityStore } from '@/stores/scrollActivityStore';
 import { tapHaptic } from '@/utils/haptics';
 
-// Manual bottom bar instead of expo-router's <Tabs> — that needs
-// @react-navigation/bottom-tabs, which isn't installed, and this app
-// only has two real top-level destinations (Feed, Perfil) plus one
-// action (Publicar) that isn't a screen you "stay on". A full tab
-// navigator would be more machinery than the app needs right now.
+// Edge-to-edge bar (Instagram/native-iOS style) instead of expo-router's
+// <Tabs> — that needs @react-navigation/bottom-tabs, which isn't
+// installed, and this app only has two real top-level destinations
+// (Feed, Perfil) plus one action (Publicar) that isn't a screen you
+// "stay on". A full tab navigator would be more machinery than the app
+// needs right now.
 export function BottomTabBar() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const isProfile = pathname === '/profile';
+  const isScrolling = useScrollActivityStore(s => s.isScrolling);
+  const compact = useSharedValue(0);
+
+  useEffect(() => {
+    compact.value = withTiming(isScrolling ? 1 : 0, { duration: 220 });
+  }, [isScrolling, compact]);
+
+  // While scrolling, the bar pulls in from the edges and rounds off —
+  // the same "compact" behaviour iOS 26's own tab bars do — then
+  // settles back to full-width when scrolling stops.
+  const compactStyle = useAnimatedStyle(() => ({
+    marginHorizontal: compact.value * Spacing.four,
+    borderRadius: compact.value * Radius.lg,
+    borderLeftWidth: compact.value,
+    borderRightWidth: compact.value,
+  }));
 
   function go(path: '/' | '/profile') {
     tapHaptic();
@@ -30,41 +51,47 @@ export function BottomTabBar() {
   }
 
   return (
-    <ThemedView style={[styles.wrap, { paddingBottom: insets.bottom + Spacing.two }]} pointerEvents="box-none">
-      <ThemedView style={[styles.bar, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+    <ThemedView style={styles.wrap} pointerEvents="box-none">
+      <Animated.View style={[styles.bar, { borderColor: theme.border, paddingBottom: insets.bottom + Spacing.two }, compactStyle]}>
+        <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />
+        <ThemedView style={[styles.barTint, { backgroundColor: theme.surface }]} />
+
         <Pressable
-          style={styles.tabButton}
+          style={({ pressed }) => [styles.tabButton, pressed && { backgroundColor: theme.backgroundElement }]}
           onPress={() => go('/')}
           accessibilityRole="button"
           accessibilityLabel="Feed"
         >
-          <Ionicons name={isProfile ? 'home-outline' : 'home'} size={22} color={isProfile ? theme.textSecondary : theme.text} />
+          <Ionicons name={isProfile ? 'home-outline' : 'home'} size={24} color={isProfile ? theme.textSecondary : theme.text} />
           <ThemedText type="caption" style={{ color: isProfile ? theme.textSecondary : theme.text }}>
             Feed
           </ThemedText>
         </Pressable>
 
         <Pressable
-          style={[styles.publishButton, { backgroundColor: theme.danger }]}
+          style={({ pressed }) => [styles.tabButton, pressed && { backgroundColor: theme.backgroundElement }]}
           onPress={goPublish}
           accessibilityRole="button"
           accessibilityLabel="Publicar aviso"
         >
-          <Ionicons name="add" size={26} color="#FFFFFF" />
+          <Ionicons name="add-circle-outline" size={24} color={theme.text} />
+          <ThemedText type="caption" style={{ color: theme.text }}>
+            Publicar
+          </ThemedText>
         </Pressable>
 
         <Pressable
-          style={styles.tabButton}
+          style={({ pressed }) => [styles.tabButton, pressed && { backgroundColor: theme.backgroundElement }]}
           onPress={() => go('/profile')}
           accessibilityRole="button"
           accessibilityLabel="Perfil"
         >
-          <Ionicons name={isProfile ? 'person' : 'person-outline'} size={22} color={isProfile ? theme.text : theme.textSecondary} />
+          <Ionicons name={isProfile ? 'person' : 'person-outline'} size={24} color={isProfile ? theme.text : theme.textSecondary} />
           <ThemedText type="caption" style={{ color: isProfile ? theme.text : theme.textSecondary }}>
             Perfil
           </ThemedText>
         </Pressable>
-      </ThemedView>
+      </Animated.View>
     </ThemedView>
   );
 }
@@ -77,7 +104,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    alignItems: 'center',
     backgroundColor: 'transparent',
   },
   bar: {
@@ -85,36 +111,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-around',
     width: '100%',
-    maxWidth: MaxContentWidth,
-    marginHorizontal: Spacing.three,
-    height: TAB_BAR_HEIGHT,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
+    minHeight: TAB_BAR_HEIGHT,
+    borderTopWidth: 1,
     paddingHorizontal: Spacing.four,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 6,
+    paddingTop: Spacing.two,
+    overflow: 'hidden',
+  },
+  // BlurView alone is too translucent over busy photos — this tint
+  // sits on top of the blur to keep icon/text contrast readable,
+  // still letting some of the blurred content show through.
+  barTint: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0.72,
   },
   tabButton: {
     alignItems: 'center',
     gap: 2,
-    minWidth: 44,
+    flex: 1,
     minHeight: 44,
     justifyContent: 'center',
-  },
-  publishButton: {
-    width: 52,
-    height: 52,
-    borderRadius: Radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: -28,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 6,
+    borderRadius: Radius.md,
   },
 });
