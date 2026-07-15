@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
   Linking,
+  Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Platform,
@@ -59,9 +60,16 @@ export default function PostDetailScreen() {
   const [isResolving, setIsResolving] = useState(false);
   const [contactError, setContactError] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
 
   function handlePhotoScrollEnd(e: NativeSyntheticEvent<NativeScrollEvent>) {
     setActiveIndex(Math.round(e.nativeEvent.contentOffset.x / screenWidth));
+  }
+
+  function handleFullscreenScrollEnd(e: NativeSyntheticEvent<NativeScrollEvent>) {
+    const index = Math.round(e.nativeEvent.contentOffset.x / screenWidth);
+    setActiveIndex(index);
+    setFullscreenIndex(index);
   }
 
   useEffect(() => {
@@ -135,8 +143,10 @@ export default function PostDetailScreen() {
             onMomentumScrollEnd={handlePhotoScrollEnd}
             style={styles.photo}
           >
-            {post.photo_urls.map(url => (
-              <Image key={url} source={{ uri: url }} style={{ width: screenWidth, height: '100%' }} contentFit="cover" />
+            {post.photo_urls.map((url, index) => (
+              <Pressable key={url} onPress={() => setFullscreenIndex(index)} style={{ width: screenWidth, height: '100%' }}>
+                <Image source={{ uri: url }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+              </Pressable>
             ))}
           </ScrollView>
           <LinearGradient colors={['transparent', 'rgba(0,0,0,0.65)']} style={styles.photoGradient} />
@@ -262,6 +272,45 @@ export default function PostDetailScreen() {
             />
           )}
         </SafeAreaView>
+      )}
+
+      {fullscreenIndex !== null && (
+        <Modal visible animationType="fade" onRequestClose={() => setFullscreenIndex(null)}>
+          <ThemedView style={styles.fullscreenContainer}>
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={handleFullscreenScrollEnd}
+              contentOffset={{ x: fullscreenIndex * screenWidth, y: 0 }}
+              style={styles.fullscreenScroll}
+            >
+              {post.photo_urls.map(url => (
+                <Image key={url} source={{ uri: url }} style={{ width: screenWidth, height: '100%' }} contentFit="contain" />
+              ))}
+            </ScrollView>
+            <SafeAreaView edges={['top']} style={styles.fullscreenTop}>
+              <Pressable
+                style={[styles.backButton, { backgroundColor: 'rgba(255,255,255,0.15)' }]}
+                onPress={() => setFullscreenIndex(null)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Cerrar"
+              >
+                <Ionicons name="close" size={24} color="#fff" />
+              </Pressable>
+            </SafeAreaView>
+            {post.photo_urls.length > 1 && (
+              <SafeAreaView edges={['bottom']} style={styles.fullscreenBottom}>
+                <ThemedView style={styles.dotsRow}>
+                  {post.photo_urls.map((url, i) => (
+                    <ThemedView key={url} style={[styles.dot, i === activeIndex && styles.dotActive]} />
+                  ))}
+                </ThemedView>
+              </SafeAreaView>
+            )}
+          </ThemedView>
+        </Modal>
       )}
     </ThemedView>
   );
@@ -418,5 +467,31 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.three,
+  },
+  // Lightbox background is always black, independent of light/dark
+  // theme — photos need max contrast, not the app's surface color.
+  fullscreenContainer: {
+    flex: 1,
+    backgroundColor: '#000000',
+    justifyContent: 'center',
+  },
+  fullscreenScroll: {
+    flex: 1,
+  },
+  fullscreenTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: Spacing.three,
+    backgroundColor: 'transparent',
+  },
+  fullscreenBottom: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingBottom: Spacing.three,
+    backgroundColor: 'transparent',
   },
 });
