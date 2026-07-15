@@ -29,7 +29,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
   },
   web: {
-    output: 'static',
+    // "server" (not "static") — dog post ids are created dynamically by
+    // users, so there's no fixed set of /p/[id] paths to pre-render.
+    // EAS Hosting needs server output to resolve those per-request.
+    output: 'server',
     favicon: './assets/images/favicon.png',
   },
   plugins: [
