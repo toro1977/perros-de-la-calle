@@ -121,17 +121,12 @@ export default function PostsListScreen() {
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         <ThemedView style={styles.header}>
           <ThemedView style={styles.headerText}>
-            <ThemedText type="kicker" themeColor="textSecondary">
-              Cerca tuyo
-            </ThemedText>
             <ThemedText type="title" style={styles.title}>
-              Perros de la calle
+              {profile?.full_name ? `Hola, ${profile.full_name.split(' ')[0]}` : 'Hola!'}
             </ThemedText>
-            {profile?.full_name && (
-              <ThemedText type="small" themeColor="textSecondary">
-                Hola, {profile.full_name.split(' ')[0]}
-              </ThemedText>
-            )}
+            <ThemedText type="small" themeColor="textSecondary">
+              Avisos cerca tuyo
+            </ThemedText>
           </ThemedView>
         </ThemedView>
 

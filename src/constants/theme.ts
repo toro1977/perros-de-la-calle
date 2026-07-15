@@ -1,7 +1,10 @@
 /**
  * Design tokens for Perros de la calle.
- * Paper + ink palette — the accent is ink (text color), and state colors
- * (danger/success/warning) carry the real visual signal.
+ * Paper + terracotta — accent is a warm burnt-orange (same family as the
+ * splash/app-icon background, #C6551F), darkened slightly to clear WCAG
+ * AA (4.5:1) for text use, which the splash color itself doesn't
+ * (4.33:1 against the app background). State colors (danger/success/
+ * warning) still carry their own separate signal.
  */
 
 import '@/global.css';
@@ -19,8 +22,8 @@ export const Colors = {
     backgroundSelected: '#ECEAE3',
     surface: '#FFFFFF',
     border: '#E5E3DD',
-    accent: '#1A1815',
-    accentSoft: '#ECEAE3',
+    accent: '#B84E1A',
+    accentSoft: '#FBEADD',
     onAccent: '#FFFFFF',
     success: '#2E9E5B',
     successSoft: '#E3F4EA',
@@ -40,8 +43,8 @@ export const Colors = {
     backgroundSelected: '#2E2E2E',
     surface: '#242424',
     border: '#333333',
-    accent: '#F0F0F0',
-    accentSoft: '#2E2E2E',
+    accent: '#E8824A',
+    accentSoft: '#3A2416',
     onAccent: '#18181A',
     success: '#4FCE86',
     successSoft: '#1B3325',
