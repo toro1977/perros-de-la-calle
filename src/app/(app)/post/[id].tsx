@@ -7,12 +7,14 @@ import {
   Linking,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Platform,
   Pressable,
   ScrollView,
   Share,
   StyleSheet,
   useWindowDimensions,
 } from 'react-native';
+import MapView, { Marker } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '@/components/button';
 import { Skeleton } from '@/components/skeleton';
@@ -80,6 +82,17 @@ export default function PostDetailScreen() {
   async function handleShare() {
     if (!post) return;
     await Share.share({ message: buildShareMessage(post) });
+  }
+
+  function handleOpenMaps() {
+    if (!post) return;
+    const label = encodeURIComponent(post.zone_text);
+    const url = Platform.select({
+      ios: `maps:0,0?q=${label}@${post.lat},${post.lng}`,
+      android: `geo:0,0?q=${post.lat},${post.lng}(${label})`,
+      default: `https://www.google.com/maps/search/?api=1&query=${post.lat},${post.lng}`,
+    });
+    Linking.openURL(url);
   }
 
   async function handleContact() {
@@ -187,6 +200,30 @@ export default function PostDetailScreen() {
                 <ThemedText type="default">{post.breed}</ThemedText>
               </ThemedView>
             )}
+          </ThemedView>
+
+          <ThemedView style={styles.mapCard}>
+            <MapView
+              style={styles.map}
+              initialRegion={{ latitude: post.lat, longitude: post.lng, latitudeDelta: 0.01, longitudeDelta: 0.01 }}
+              scrollEnabled={false}
+              zoomEnabled={false}
+              rotateEnabled={false}
+              pitchEnabled={false}
+            >
+              <Marker coordinate={{ latitude: post.lat, longitude: post.lng }} pinColor={theme[DOG_POST_TYPE_META[post.type as DogPostType].tone]} />
+            </MapView>
+            <Pressable
+              style={[styles.mapOpenButton, { backgroundColor: theme.surface, borderColor: theme.border }]}
+              onPress={handleOpenMaps}
+              accessibilityRole="button"
+              accessibilityLabel="Abrir en Maps"
+            >
+              <Ionicons name="navigate-outline" size={16} color={theme.text} />
+              <ThemedText type="small" style={{ fontWeight: '600' }}>
+                Abrir en Maps
+              </ThemedText>
+            </Pressable>
           </ThemedView>
 
           {post.description && (
@@ -327,6 +364,31 @@ const styles = StyleSheet.create({
   descriptionBox: {
     borderRadius: Radius.md,
     padding: Spacing.three,
+  },
+  mapCard: {
+    height: 180,
+    borderRadius: Radius.md,
+    overflow: 'hidden',
+  },
+  map: {
+    flex: 1,
+  },
+  mapOpenButton: {
+    position: 'absolute',
+    bottom: Spacing.two,
+    right: Spacing.two,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+    borderWidth: 1,
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.one + 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   errorBox: {
     flexDirection: 'row',
