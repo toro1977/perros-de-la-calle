@@ -145,19 +145,14 @@ export function BottomTabBar() {
           </ThemedView>
         </ThemedView>
 
-        <ThemedView style={styles.publishWrap} pointerEvents="box-none">
-          <Pressable
-            style={({ pressed }) => [styles.publishButton, { backgroundColor: theme.accent }, pressed && styles.publishButtonPressed]}
-            onPress={goPublish}
-            accessibilityRole="button"
-            accessibilityLabel="Publicar aviso"
-          >
-            <Ionicons name="add" size={26} color={theme.onAccent} />
-          </Pressable>
-          <ThemedText type="caption" style={{ color: theme.text }}>
-            Publicar
-          </ThemedText>
-        </ThemedView>
+        <Pressable
+          style={({ pressed }) => [styles.publishButton, { backgroundColor: theme.accent }, pressed && styles.publishButtonPressed]}
+          onPress={goPublish}
+          accessibilityRole="button"
+          accessibilityLabel="Publicar aviso"
+        >
+          <Ionicons name="add" size={28} color={theme.onAccent} />
+        </Pressable>
       </Animated.View>
     </ThemedView>
   );
@@ -232,17 +227,11 @@ const styles = StyleSheet.create({
     borderRadius: Radius.full,
     borderWidth: 1.5,
   },
-  publishWrap: {
+  publishButton: {
     position: 'absolute',
     top: -18,
     left: '50%',
-    marginLeft: -(PUBLISH_SIZE + Spacing.four) / 2,
-    width: PUBLISH_SIZE + Spacing.four,
-    alignItems: 'center',
-    gap: 2,
-    backgroundColor: 'transparent',
-  },
-  publishButton: {
+    marginLeft: -PUBLISH_SIZE / 2,
     width: PUBLISH_SIZE,
     height: PUBLISH_SIZE,
     borderRadius: Radius.full,
