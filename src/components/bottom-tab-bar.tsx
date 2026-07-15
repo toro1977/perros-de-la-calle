@@ -14,13 +14,13 @@ import { tapHaptic } from '@/utils/haptics';
 
 const PUBLISH_SIZE = 56;
 
-// Feed · Mis avisos · [Publicar] · Perfil. "Mapa" isn't here anymore —
-// it's a view-mode toggle on the feed itself, not a destination (see
+// Feed · Mis avisos · [Publicar] · Alertas · Perfil. "Mapa" isn't here
+// — it's a view-mode toggle on the feed itself, not a destination (see
 // the Lista/Mapa segmented control in src/app/(app)/index.tsx).
-// "Notificaciones" isn't here either — it has no backend yet
-// (src/app/(app)/notifications.tsx is unlinked, kept for when that
-// epic starts; call it "Alertas" then, never "Avisos" — that word is
-// already taken by posts, see docs/rediseno-v3.md section A3/A4).
+// "Alertas" (src/app/(app)/notifications.tsx) has no backend yet, so
+// it carries a small "soon" dot instead of pretending to work — never
+// call it "Avisos", that word is already taken by posts (see
+// docs/rediseno-v3.md section A3/A4).
 //
 // Publicar is a round elevated button (theme.accent), absolutely
 // positioned as a sibling of the blurred/clipped bar rather than a
@@ -33,6 +33,7 @@ export function BottomTabBar() {
   const pathname = usePathname();
   const isFeedActive = pathname === '/';
   const isMyPosts = pathname === '/my-posts';
+  const isNotifications = pathname === '/notifications';
   const isProfile = pathname === '/profile';
   const isScrolling = useScrollActivityStore(s => s.isScrolling);
   const compact = useSharedValue(0);
@@ -56,6 +57,11 @@ export function BottomTabBar() {
   function goMyPosts() {
     tapHaptic();
     router.replace('/my-posts');
+  }
+
+  function goNotifications() {
+    tapHaptic();
+    router.replace('/notifications');
   }
 
   function goProfile() {
@@ -106,6 +112,27 @@ export function BottomTabBar() {
           <ThemedView style={styles.sideGroup}>
             <Pressable
               style={({ pressed }) => [styles.tabButton, pressed && { backgroundColor: theme.backgroundElement }]}
+              onPress={goNotifications}
+              accessibilityRole="button"
+              accessibilityLabel="Alertas — todavía no disponible"
+            >
+              <ThemedView style={styles.tabIconWrap}>
+                <Ionicons
+                  name={isNotifications ? 'notifications' : 'notifications-outline'}
+                  size={22}
+                  color={isNotifications ? theme.text : theme.textSecondary}
+                />
+                {/* "Alertas" has no backend yet — this dot says "not live",
+                    never a real unread count. */}
+                <ThemedView style={[styles.soonDot, { backgroundColor: theme.textSecondary, borderColor: theme.surface }]} />
+              </ThemedView>
+              <ThemedText type="caption" style={{ color: isNotifications ? theme.text : theme.textSecondary }}>
+                Alertas
+              </ThemedText>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [styles.tabButton, pressed && { backgroundColor: theme.backgroundElement }]}
               onPress={goProfile}
               accessibilityRole="button"
               accessibilityLabel="Perfil"
@@ -118,14 +145,19 @@ export function BottomTabBar() {
           </ThemedView>
         </ThemedView>
 
-        <Pressable
-          style={({ pressed }) => [styles.publishButton, { backgroundColor: theme.accent }, pressed && styles.publishButtonPressed]}
-          onPress={goPublish}
-          accessibilityRole="button"
-          accessibilityLabel="Publicar aviso"
-        >
-          <Ionicons name="add" size={28} color={theme.onAccent} />
-        </Pressable>
+        <ThemedView style={styles.publishWrap} pointerEvents="box-none">
+          <Pressable
+            style={({ pressed }) => [styles.publishButton, { backgroundColor: theme.accent }, pressed && styles.publishButtonPressed]}
+            onPress={goPublish}
+            accessibilityRole="button"
+            accessibilityLabel="Publicar aviso"
+          >
+            <Ionicons name="add" size={26} color={theme.onAccent} />
+          </Pressable>
+          <ThemedText type="caption" style={{ color: theme.text }}>
+            Publicar
+          </ThemedText>
+        </ThemedView>
       </Animated.View>
     </ThemedView>
   );
@@ -188,11 +220,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: Radius.md,
   },
-  publishButton: {
+  tabIconWrap: {
+    backgroundColor: 'transparent',
+  },
+  soonDot: {
+    position: 'absolute',
+    top: -1,
+    right: -3,
+    width: 8,
+    height: 8,
+    borderRadius: Radius.full,
+    borderWidth: 1.5,
+  },
+  publishWrap: {
     position: 'absolute',
     top: -18,
     left: '50%',
-    marginLeft: -PUBLISH_SIZE / 2,
+    marginLeft: -(PUBLISH_SIZE + Spacing.four) / 2,
+    width: PUBLISH_SIZE + Spacing.four,
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: 'transparent',
+  },
+  publishButton: {
     width: PUBLISH_SIZE,
     height: PUBLISH_SIZE,
     borderRadius: Radius.full,
