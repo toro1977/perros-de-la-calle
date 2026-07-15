@@ -1,5 +1,6 @@
 import { Alert } from 'react-native';
 import * as Location from 'expo-location';
+import { supabase } from '@/services/supabase';
 
 export type CurrentLocation = {
   lat: number;
@@ -16,77 +17,20 @@ function buildZoneText(place: Location.LocationGeocodedAddress | undefined) {
   return place.district ?? place.city ?? place.subregion ?? 'Ubicación sin identificar';
 }
 
-type NominatimAddress = {
-  suburb?: string;
-  neighbourhood?: string;
-  quarter?: string;
-  city?: string;
-  town?: string;
-  village?: string;
-  municipality?: string;
-  state_district?: string;
-  state?: string;
-};
-
-function stripPartidoPrefix(name: string) {
-  return name.replace(/^Partido de\s+/i, '');
-}
-
-function shortenProvince(name: string) {
-  return name === 'Ciudad Autónoma de Buenos Aires' ? 'CABA' : name;
-}
-
-// Apple's on-device geocoder (Location.reverseGeocodeAsync) only knows
-// the partido level in Greater Buenos Aires ("Esteban Echeverría" for
-// every coordinate from Monte Grande to Luis Guillón) — not useful for
-// telling posts in the same partido apart. Nominatim's data for
-// Argentina goes down to the actual barrio/localidad, which is what
-// people search a lost dog by. Native geocoding is the fallback if this
-// fails (offline, rate-limited, etc.) rather than the primary source.
-//
-// Builds "Localidad, Partido, Provincia" — CABA's state_district comes
-// back as "Comuna 14", which nobody navigates by, so that segment is
-// dropped there and it's just "Barrio, CABA" instead.
-async function reverseGeocodeNominatim(lat: number, lng: number): Promise<string | null> {
-  const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=jsonv2&accept-language=es&zoom=14`;
-  const response = await fetch(url, {
-    headers: { 'User-Agent': 'PerrosDeLaCalleApp/1.0 (contacto@perrosdelacalle.app)' },
-  });
-  if (!response.ok) return null;
-  const data: { address?: NominatimAddress } = await response.json();
-  const address = data.address;
-  if (!address) return null;
-
-  // suburb (barrio) wins when present — that's how CABA's own city
-  // ("Buenos Aires" for every coordinate in it) gets skipped in favor of
-  // e.g. "Palermo". Otherwise the actual locality name (city/town/
-  // village) beats neighbourhood/quarter, which tend to be finer-grained
-  // than what's useful for "which town is this dog in" (e.g. "Temperley"
-  // over "Barrio Inglés").
-  const locality =
-    address.suburb ??
-    address.city ??
-    address.town ??
-    address.village ??
-    address.municipality ??
-    address.neighbourhood ??
-    address.quarter ??
-    null;
-  const isComuna = address.state_district && /^Comuna\s+\d+/i.test(address.state_district);
-  const partido = address.state_district && !isComuna ? stripPartidoPrefix(address.state_district) : null;
-  const province = address.state ? shortenProvince(address.state) : null;
-
-  const parts: string[] = [];
-  for (const part of [locality, partido, province]) {
-    if (part && parts[parts.length - 1] !== part) parts.push(part);
-  }
-  return parts.length > 0 ? parts.join(', ') : null;
-}
-
+// The reverse-geocode Edge Function proxies Nominatim (OpenStreetMap)
+// server-side — calling Nominatim directly from the device silently
+// dropped the custom User-Agent header (fetch() treats it as a
+// "forbidden" header on some RN environments), which meant every call
+// was falling back to Apple's geocoder and never actually showing the
+// richer "Localidad, Partido, Provincia" text at all. Native geocoding
+// here is now only the fallback for when the Edge Function itself is
+// unreachable (offline, Supabase down), not the primary source.
 export async function reverseGeocode(lat: number, lng: number): Promise<string> {
   try {
-    const zone = await reverseGeocodeNominatim(lat, lng);
-    if (zone) return zone;
+    const { data, error } = await supabase.functions.invoke<{ zoneText: string | null }>('reverse-geocode', {
+      body: { lat, lng },
+    });
+    if (!error && data?.zoneText) return data.zoneText;
   } catch {
     // fall through to native geocoding below
   }
