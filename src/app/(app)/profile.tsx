@@ -32,6 +32,7 @@ export default function ProfileScreen() {
   const signOut = useAuthStore(s => s.signOut);
   const updateProfile = useAuthStore(s => s.updateProfile);
   const updateAvatar = useAuthStore(s => s.updateAvatar);
+  const deleteAccount = useAuthStore(s => s.deleteAccount);
   const isLoading = useAuthStore(s => s.isLoading);
 
   const [fullName, setFullName] = useState(profile?.full_name ?? '');
@@ -48,6 +49,27 @@ export default function ProfileScreen() {
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Cerrar sesión', style: 'destructive', onPress: signOut },
     ]);
+  }
+
+  function handleDeleteAccount() {
+    Alert.alert(
+      'Borrar cuenta',
+      'Se borra tu cuenta y todos tus avisos, para siempre. No se puede deshacer.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Borrar cuenta',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteAccount();
+            } catch (err) {
+              setError(err instanceof Error ? err.message : 'No se pudo borrar la cuenta');
+            }
+          },
+        },
+      ]
+    );
   }
 
   async function handleChangeAvatar() {
@@ -177,6 +199,13 @@ export default function ProfileScreen() {
               variant="ghost"
               onPress={handleSignOut}
               icon={<Ionicons name="log-out-outline" size={18} color={theme.text} />}
+            />
+            <Button
+              label="Borrar cuenta"
+              variant="ghost"
+              onPress={handleDeleteAccount}
+              loading={isLoading}
+              icon={<Ionicons name="trash-outline" size={18} color={theme.danger} />}
             />
           </ScrollView>
         </KeyboardAvoidingView>

@@ -22,6 +22,7 @@ type AuthActions = {
   refreshProfile: () => Promise<void>;
   updateProfile: (updates: { fullName: string; phone: string }) => Promise<void>;
   updateAvatar: (avatarUrl: string) => Promise<void>;
+  deleteAccount: () => Promise<void>;
 };
 
 // Creates the users (and shelters, if role=shelter) row the first time a
@@ -180,5 +181,17 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     const { error } = await supabase.from('users').update({ avatar_url: avatarUrl }).eq('id', session.user.id);
     if (error) throw error;
     await get().refreshProfile();
+  },
+
+  deleteAccount: async () => {
+    set({ isLoading: true });
+    try {
+      const { error } = await supabase.functions.invoke('delete-account');
+      if (error) throw error;
+      await supabase.auth.signOut();
+      set({ session: null, profile: null });
+    } finally {
+      set({ isLoading: false });
+    }
   },
 }));
