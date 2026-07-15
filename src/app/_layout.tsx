@@ -37,8 +37,11 @@ function NavigationGuard() {
 
   useEffect(() => {
     const inAuthGroup = segments[0] === '(auth)';
+    // "p" is the public post landing (src/app/p/[id].tsx) — shared links
+    // need to open it for people who aren't logged in at all.
+    const inPublicGroup = segments[0] === 'p';
 
-    if (!session && !inAuthGroup) {
+    if (!session && !inAuthGroup && !inPublicGroup) {
       router.replace('/(auth)/login');
     } else if (session && inAuthGroup) {
       router.replace('/(app)');
