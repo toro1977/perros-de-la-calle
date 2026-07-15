@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as ExpoLinking from 'expo-linking';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
   Linking,
@@ -35,13 +34,15 @@ function buildWhatsAppUrl(e164Phone: string, zoneText: string) {
   return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
 }
 
-// Deep link only opens the post for people who already have the app
-// installed — there's no web fallback yet, so the message text carries
-// the useful info (type, zona, raza) on its own for everyone else.
+// Public landing (src/app/p/[id].tsx), deployed via EAS Hosting — opens
+// for anyone, app installed or not. Update this if the site ever moves
+// to a custom domain.
+const PUBLIC_SITE_URL = 'https://perros-de-la-calle.expo.app';
+
 function buildShareMessage(post: DogPostDetail) {
   const typeLabel = DOG_POST_TYPE_META[post.type as DogPostType].label;
   const breedPart = post.breed ? ` · ${post.breed}` : '';
-  const link = ExpoLinking.createURL(`/post/${post.id}`);
+  const link = `${PUBLIC_SITE_URL}/p/${post.id}`;
   return `${typeLabel} en ${post.zone_text}${breedPart}. Mirá el aviso en Perros de la calle: ${link}`;
 }
 
