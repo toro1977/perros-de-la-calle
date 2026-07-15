@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Image } from 'expo-image';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -17,6 +18,11 @@ type Props = {
 };
 
 export function ZoomableImage({ uri, width, height, onZoomChange }: Props) {
+  // Drives panGesture's .enabled() — a gesture with onUpdate that
+  // no-ops still CLAIMS the touch from the outer pager's ScrollView.
+  // It has to be fully disabled at rest, not just inert, or a one-
+  // finger horizontal drag never reaches the page-swipe.
+  const [isZoomed, setIsZoomed] = useState(false);
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
   const translateX = useSharedValue(0);
@@ -34,6 +40,11 @@ export function ZoomableImage({ uri, width, height, onZoomChange }: Props) {
     savedTranslateY.value = 0;
   }
 
+  function updateZoomed(zoomed: boolean) {
+    setIsZoomed(zoomed);
+    onZoomChange(zoomed);
+  }
+
   const pinchGesture = Gesture.Pinch()
     .onUpdate(e => {
       scale.value = Math.min(Math.max(savedScale.value * e.scale, 1), MAX_SCALE);
@@ -42,17 +53,17 @@ export function ZoomableImage({ uri, width, height, onZoomChange }: Props) {
       savedScale.value = scale.value;
       if (scale.value <= 1) {
         reset();
-        runOnJS(onZoomChange)(false);
+        runOnJS(updateZoomed)(false);
       } else {
-        runOnJS(onZoomChange)(true);
+        runOnJS(updateZoomed)(true);
       }
     });
 
   const panGesture = Gesture.Pan()
     .minPointers(1)
     .maxPointers(1)
+    .enabled(isZoomed)
     .onUpdate(e => {
-      if (savedScale.value <= 1) return; // at rest, the page-swipe pager owns horizontal drags
       translateX.value = savedTranslateX.value + e.translationX;
       translateY.value = savedTranslateY.value + e.translationY;
     })
@@ -66,11 +77,11 @@ export function ZoomableImage({ uri, width, height, onZoomChange }: Props) {
     .onEnd(() => {
       if (scale.value > 1) {
         reset();
-        runOnJS(onZoomChange)(false);
+        runOnJS(updateZoomed)(false);
       } else {
         scale.value = withTiming(DOUBLE_TAP_SCALE);
         savedScale.value = DOUBLE_TAP_SCALE;
-        runOnJS(onZoomChange)(true);
+        runOnJS(updateZoomed)(true);
       }
     });
 
