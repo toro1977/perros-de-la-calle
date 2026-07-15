@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { DarkTheme, DefaultTheme, Slot, SplashScreen, ThemeProvider, useRouter, useSegments } from 'expo-router';
 import { useColorScheme } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Colors } from '@/constants/theme';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -61,9 +62,15 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkNavTheme : LightNavTheme}>
-      {isInitialized && <NavigationGuard />}
-      <Slot />
-    </ThemeProvider>
+    // Required by react-native-gesture-handler for any Gesture/
+    // GestureDetector usage (the fullscreen photo zoom) to work
+    // reliably — without it, gestures can silently misbehave,
+    // especially on Android.
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider value={colorScheme === 'dark' ? DarkNavTheme : LightNavTheme}>
+        {isInitialized && <NavigationGuard />}
+        <Slot />
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }

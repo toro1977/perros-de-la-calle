@@ -22,6 +22,7 @@ import { Skeleton } from '@/components/skeleton';
 import { StatusBadge } from '@/components/status-badge';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { ZoomableImage } from '@/components/zoomable-image';
 import { DOG_POST_TYPE_META } from '@/constants/dog-post-types';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -51,7 +52,7 @@ function buildShareMessage(post: DogPostDetail) {
 
 export default function PostDetailScreen() {
   const theme = useTheme();
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const { id } = useLocalSearchParams<{ id: string }>();
   const profile = useAuthStore(s => s.profile);
   const getPost = useDogPostsStore(s => s.getPost);
@@ -61,6 +62,7 @@ export default function PostDetailScreen() {
   const [contactError, setContactError] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
+  const [pagerScrollEnabled, setPagerScrollEnabled] = useState(true);
 
   function handlePhotoScrollEnd(e: NativeSyntheticEvent<NativeScrollEvent>) {
     setActiveIndex(Math.round(e.nativeEvent.contentOffset.x / screenWidth));
@@ -144,7 +146,14 @@ export default function PostDetailScreen() {
             style={styles.photo}
           >
             {post.photo_urls.map((url, index) => (
-              <Pressable key={url} onPress={() => setFullscreenIndex(index)} style={{ width: screenWidth, height: '100%' }}>
+              <Pressable
+                key={url}
+                onPress={() => {
+                  setPagerScrollEnabled(true);
+                  setFullscreenIndex(index);
+                }}
+                style={{ width: screenWidth, height: '100%' }}
+              >
                 <Image source={{ uri: url }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
               </Pressable>
             ))}
@@ -284,13 +293,20 @@ export default function PostDetailScreen() {
               <ScrollView
                 horizontal
                 pagingEnabled
+                scrollEnabled={pagerScrollEnabled}
                 showsHorizontalScrollIndicator={false}
                 onMomentumScrollEnd={handleFullscreenScrollEnd}
                 contentOffset={{ x: fullscreenIndex * screenWidth, y: 0 }}
                 style={styles.fullscreenScroll}
               >
                 {post.photo_urls.map(url => (
-                  <Image key={url} source={{ uri: url }} style={{ width: screenWidth, height: '100%' }} contentFit="contain" />
+                  <ZoomableImage
+                    key={url}
+                    uri={url}
+                    width={screenWidth}
+                    height={screenHeight}
+                    onZoomChange={zoomed => setPagerScrollEnabled(!zoomed)}
+                  />
                 ))}
               </ScrollView>
               <SafeAreaView edges={['top']} style={styles.fullscreenTop}>
