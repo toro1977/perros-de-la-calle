@@ -16,7 +16,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '@/components/button';
 import { Skeleton } from '@/components/skeleton';
 import { StatusBadge } from '@/components/status-badge';
@@ -276,40 +276,45 @@ export default function PostDetailScreen() {
 
       {fullscreenIndex !== null && (
         <Modal visible animationType="fade" onRequestClose={() => setFullscreenIndex(null)}>
-          <ThemedView style={styles.fullscreenContainer}>
-            <ScrollView
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              onMomentumScrollEnd={handleFullscreenScrollEnd}
-              contentOffset={{ x: fullscreenIndex * screenWidth, y: 0 }}
-              style={styles.fullscreenScroll}
-            >
-              {post.photo_urls.map(url => (
-                <Image key={url} source={{ uri: url }} style={{ width: screenWidth, height: '100%' }} contentFit="contain" />
-              ))}
-            </ScrollView>
-            <SafeAreaView edges={['top']} style={styles.fullscreenTop}>
-              <Pressable
-                style={[styles.backButton, { backgroundColor: 'rgba(255,255,255,0.15)' }]}
-                onPress={() => setFullscreenIndex(null)}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel="Cerrar"
+          {/* RN's Modal presents in its own native root on iOS — the
+              outer app's SafeAreaProvider doesn't reach in, so insets
+              read as 0 without a fresh provider mounted inside here. */}
+          <SafeAreaProvider>
+            <ThemedView style={styles.fullscreenContainer}>
+              <ScrollView
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onMomentumScrollEnd={handleFullscreenScrollEnd}
+                contentOffset={{ x: fullscreenIndex * screenWidth, y: 0 }}
+                style={styles.fullscreenScroll}
               >
-                <Ionicons name="close" size={24} color="#fff" />
-              </Pressable>
-            </SafeAreaView>
-            {post.photo_urls.length > 1 && (
-              <SafeAreaView edges={['bottom']} style={styles.fullscreenBottom}>
-                <ThemedView style={styles.dotsRow}>
-                  {post.photo_urls.map((url, i) => (
-                    <ThemedView key={url} style={[styles.dot, i === activeIndex && styles.dotActive]} />
-                  ))}
-                </ThemedView>
+                {post.photo_urls.map(url => (
+                  <Image key={url} source={{ uri: url }} style={{ width: screenWidth, height: '100%' }} contentFit="contain" />
+                ))}
+              </ScrollView>
+              <SafeAreaView edges={['top']} style={styles.fullscreenTop}>
+                <Pressable
+                  style={[styles.backButton, { backgroundColor: 'rgba(255,255,255,0.15)' }]}
+                  onPress={() => setFullscreenIndex(null)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Cerrar"
+                >
+                  <Ionicons name="close" size={24} color="#fff" />
+                </Pressable>
               </SafeAreaView>
-            )}
-          </ThemedView>
+              {post.photo_urls.length > 1 && (
+                <SafeAreaView edges={['bottom']} style={styles.fullscreenBottom}>
+                  <ThemedView style={styles.dotsRow}>
+                    {post.photo_urls.map((url, i) => (
+                      <ThemedView key={url} style={[styles.dot, i === activeIndex && styles.dotActive]} />
+                    ))}
+                  </ThemedView>
+                </SafeAreaView>
+              )}
+            </ThemedView>
+          </SafeAreaProvider>
         </Modal>
       )}
     </ThemedView>
