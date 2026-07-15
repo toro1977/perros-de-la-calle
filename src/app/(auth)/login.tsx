@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '@/components/button';
 import { TextField } from '@/components/text-field';
@@ -11,6 +12,10 @@ import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuthStore } from '@/stores/authStore';
 import { scrollFieldIntoView } from '@/utils/scroll-to-input';
+
+function handleSocialLoginPlaceholder() {
+  Alert.alert('Próximamente', 'El login social todavía no está conectado.');
+}
 
 export default function LoginScreen() {
   const theme = useTheme();
@@ -34,6 +39,10 @@ export default function LoginScreen() {
 
   return (
     <ThemedView style={styles.container}>
+      {/* The hero below bleeds under the status bar — dark icons on a
+          dark terracotta background are unreadable, so this screen
+          needs light content while it's on screen. */}
+      <StatusBar style="light" />
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView ref={scrollRef} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
@@ -48,6 +57,29 @@ export default function LoginScreen() {
             </ThemedView>
 
             <ThemedView style={styles.form}>
+              <Button
+                label="Continuar con Google"
+                variant="secondary"
+                onPress={handleSocialLoginPlaceholder}
+                icon={<Ionicons name="logo-google" size={18} color={theme.text} />}
+              />
+              {Platform.OS === 'ios' && (
+                <Button
+                  label="Continuar con Apple"
+                  variant="secondary"
+                  onPress={handleSocialLoginPlaceholder}
+                  icon={<Ionicons name="logo-apple" size={20} color={theme.text} />}
+                />
+              )}
+
+              <ThemedView style={styles.dividerRow}>
+                <ThemedView style={[styles.dividerLine, { backgroundColor: theme.border }]} />
+                <ThemedText type="caption" themeColor="textSecondary">
+                  o con tu email
+                </ThemedText>
+                <ThemedView style={[styles.dividerLine, { backgroundColor: theme.border }]} />
+              </ThemedView>
+
               <TextField
                 ref={emailRef}
                 label="Email"
@@ -134,6 +166,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: Spacing.four,
     gap: Spacing.three,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    backgroundColor: 'transparent',
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
   },
   errorBox: {
     flexDirection: 'row',
