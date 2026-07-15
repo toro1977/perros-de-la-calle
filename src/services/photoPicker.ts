@@ -68,6 +68,47 @@ async function pickFromGallery(selectionLimit: number): Promise<PickedPhoto[]> {
   );
 }
 
+// Single selection (unlike pickFromGallery's multi-select) can use
+// allowsEditing, so avatars always come back pre-cropped to a square.
+async function pickSingleFromGallery(): Promise<PickedPhoto | null> {
+  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (permission.status !== 'granted') {
+    Alert.alert('Permiso requerido', 'Necesitamos acceso a tu galería.');
+    return null;
+  }
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images'],
+    allowsEditing: true,
+    aspect: [1, 1],
+    quality: 0.7,
+  });
+  if (result.canceled) return null;
+  const asset = result.assets[0];
+  return resizeIfNeeded(asset.uri, asset.width, asset.height, asset.mimeType ?? null);
+}
+
+export function pickAvatarPhoto(): Promise<PickedPhoto | null> {
+  return new Promise(resolve => {
+    let settled = false;
+    const resolveOnce = (value: PickedPhoto | null) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+
+    Alert.alert(
+      'Foto de perfil',
+      '¿De dónde querés sacar la foto?',
+      [
+        { text: 'Cámara', onPress: () => takePhoto().then(resolveOnce) },
+        { text: 'Galería', onPress: () => pickSingleFromGallery().then(resolveOnce) },
+        { text: 'Cancelar', style: 'cancel', onPress: () => resolveOnce(null) },
+      ],
+      { onDismiss: () => resolveOnce(null) }
+    );
+  });
+}
+
 export function pickPhotos(remainingSlots: number): Promise<PickedPhoto[]> {
   return new Promise(resolve => {
     let settled = false;

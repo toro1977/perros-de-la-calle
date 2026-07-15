@@ -1,7 +1,17 @@
 import { useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BottomTabBar, TAB_BAR_HEIGHT } from '@/components/bottom-tab-bar';
 import { Button } from '@/components/button';
@@ -10,6 +20,8 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { uploadAvatar } from '@/services/avatarUpload';
+import { pickAvatarPhoto } from '@/services/photoPicker';
 import { useAuthStore } from '@/stores/authStore';
 import { normalizeArPhone } from '@/utils/phone';
 import { scrollFieldIntoView } from '@/utils/scroll-to-input';
@@ -19,12 +31,14 @@ export default function ProfileScreen() {
   const profile = useAuthStore(s => s.profile);
   const signOut = useAuthStore(s => s.signOut);
   const updateProfile = useAuthStore(s => s.updateProfile);
+  const updateAvatar = useAuthStore(s => s.updateAvatar);
   const isLoading = useAuthStore(s => s.isLoading);
 
   const [fullName, setFullName] = useState(profile?.full_name ?? '');
   const [phone, setPhone] = useState(profile?.phone?.replace(/^\+549/, '') ?? '');
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const nameRef = useRef<TextInput>(null);
   const phoneRef = useRef<TextInput>(null);
@@ -34,6 +48,21 @@ export default function ProfileScreen() {
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Cerrar sesión', style: 'destructive', onPress: signOut },
     ]);
+  }
+
+  async function handleChangeAvatar() {
+    if (!profile) return;
+    const photo = await pickAvatarPhoto();
+    if (!photo) return;
+    setIsUploadingAvatar(true);
+    try {
+      const avatarUrl = await uploadAvatar(profile.id, photo.uri, photo.mimeType);
+      await updateAvatar(avatarUrl);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo subir la foto de perfil');
+    } finally {
+      setIsUploadingAvatar(false);
+    }
   }
 
   async function handleSave() {
@@ -70,9 +99,29 @@ export default function ProfileScreen() {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            <ThemedView style={[styles.avatar, { backgroundColor: theme.accentSoft }]}>
-              <Ionicons name="person" size={32} color={theme.accent} />
-            </ThemedView>
+            <Pressable
+              onPress={handleChangeAvatar}
+              disabled={isUploadingAvatar}
+              style={styles.avatarWrap}
+              accessibilityRole="button"
+              accessibilityLabel="Cambiar foto de perfil"
+            >
+              <ThemedView style={[styles.avatar, { backgroundColor: theme.accentSoft }]}>
+                {profile?.avatar_url ? (
+                  <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} contentFit="cover" />
+                ) : (
+                  <Ionicons name="person" size={32} color={theme.accent} />
+                )}
+                {isUploadingAvatar && (
+                  <ThemedView style={styles.avatarOverlay}>
+                    <ActivityIndicator color="#FFFFFF" />
+                  </ThemedView>
+                )}
+              </ThemedView>
+              <ThemedView style={[styles.avatarBadge, { backgroundColor: theme.accent, borderColor: theme.background }]}>
+                <Ionicons name="camera" size={14} color={theme.onAccent} />
+              </ThemedView>
+            </Pressable>
             {!!profile?.email && (
               <ThemedText type="small" themeColor="textSecondary" style={styles.emailText}>
                 {profile.email}
@@ -160,13 +209,41 @@ const styles = StyleSheet.create({
     paddingBottom: TAB_BAR_HEIGHT + Spacing.six,
     gap: Spacing.three,
   },
+  avatarWrap: {
+    alignSelf: 'center',
+  },
   avatar: {
-    width: 64,
-    height: 64,
+    width: 84,
+    height: 84,
     borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    alignSelf: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: Radius.full,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emailText: {
     alignSelf: 'center',
