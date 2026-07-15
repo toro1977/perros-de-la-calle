@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '@/components/button';
@@ -39,11 +38,7 @@ export default function LoginScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      {/* The hero below bleeds under the status bar — dark icons on a
-          dark terracotta background are unreadable, so this screen
-          needs light content while it's on screen. */}
-      <StatusBar style="light" />
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView ref={scrollRef} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
             <ThemedView style={[styles.hero, { backgroundColor: theme.accent }]}>
@@ -151,8 +146,9 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     paddingVertical: Spacing.six,
     paddingHorizontal: Spacing.four,
-    borderBottomLeftRadius: Radius.lg,
-    borderBottomRightRadius: Radius.lg,
+    marginHorizontal: Spacing.four,
+    marginTop: Spacing.three,
+    borderRadius: Radius.lg,
   },
   appName: {
     textAlign: 'center',
