@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { Link, router, useFocusEffect } from 'expo-router';
 import { Alert, FlatList, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BottomTabBar, TAB_BAR_HEIGHT } from '@/components/bottom-tab-bar';
 import { StatusBadge } from '@/components/status-badge';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -100,13 +101,9 @@ export default function MyPostsScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         <ThemedView style={styles.header}>
-          <Pressable onPress={() => router.back()} hitSlop={8} accessibilityRole="button" accessibilityLabel="Volver">
-            <Ionicons name="chevron-back" size={26} color={theme.text} />
-          </Pressable>
           <ThemedText type="subtitle">Mis avisos</ThemedText>
-          <ThemedView style={styles.headerSpacer} />
         </ThemedView>
 
         <FlatList
@@ -135,6 +132,8 @@ export default function MyPostsScreen() {
           }
         />
       </SafeAreaView>
+
+      <BottomTabBar />
     </ThemedView>
   );
 }
@@ -151,18 +150,11 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     paddingVertical: Spacing.three,
-  },
-  headerSpacer: {
-    width: 26,
-    backgroundColor: 'transparent',
   },
   listContent: {
     gap: Spacing.three,
-    paddingBottom: Spacing.six,
+    paddingBottom: TAB_BAR_HEIGHT + Spacing.six,
   },
   card: {
     flexDirection: 'row',
