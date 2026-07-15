@@ -8,8 +8,12 @@ import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 // No backend for this yet (no notifications table, no push wiring) —
-// placeholder screen so the tab bar can have its 5th slot now, filled
-// in for real once that epic starts.
+// unlinked from the tab bar until it does something real (see
+// docs/rediseno-v3.md section A4: a tab that leads to an empty screen
+// costs a slot and lets the user down). Named "Alertas", not "Avisos"
+// — that word already means "posts" everywhere else in the app
+// (Publicar aviso, Mis avisos), so it can't also mean "notifications"
+// (section A3). Keep this route around for whenever the feature lands.
 export default function NotificationsScreen() {
   const theme = useTheme();
 
@@ -17,7 +21,7 @@ export default function NotificationsScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         <ThemedView style={styles.header}>
-          <ThemedText type="subtitle">Notificaciones</ThemedText>
+          <ThemedText type="subtitle">Alertas</ThemedText>
         </ThemedView>
 
         <ThemedView style={styles.empty}>

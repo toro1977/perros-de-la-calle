@@ -63,6 +63,7 @@ export default function PostDetailScreen() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
   const [pagerScrollEnabled, setPagerScrollEnabled] = useState(true);
+  const [failedPhotoUrls, setFailedPhotoUrls] = useState<Set<string>>(new Set());
 
   function handlePhotoScrollEnd(e: NativeSyntheticEvent<NativeScrollEvent>) {
     setActiveIndex(Math.round(e.nativeEvent.contentOffset.x / screenWidth));
@@ -154,7 +155,18 @@ export default function PostDetailScreen() {
                 }}
                 style={{ width: screenWidth, height: '100%' }}
               >
-                <Image source={{ uri: url }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+                {failedPhotoUrls.has(url) ? (
+                  <ThemedView style={[styles.photoFallback, { backgroundColor: theme.backgroundElement }]}>
+                    <Ionicons name="paw" size={40} color={theme.textSecondary} />
+                  </ThemedView>
+                ) : (
+                  <Image
+                    source={{ uri: url }}
+                    style={{ width: '100%', height: '100%' }}
+                    contentFit="cover"
+                    onError={() => setFailedPhotoUrls(prev => new Set(prev).add(url))}
+                  />
+                )}
               </Pressable>
             ))}
           </ScrollView>
@@ -356,6 +368,12 @@ const styles = StyleSheet.create({
   photo: {
     width: '100%',
     height: '100%',
+  },
+  photoFallback: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   photoGradient: {
     position: 'absolute',

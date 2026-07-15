@@ -12,6 +12,9 @@ type DogPostsState = {
   posts: DogPostListItem[];
   myPosts: MyDogPost[];
   isLoading: boolean;
+  // Distinct from "posts is empty" — a failed fetch and a genuinely
+  // empty feed need different UI (retry vs. "be the first to post").
+  error: string | null;
 };
 
 type DogPostsActions = {
@@ -49,9 +52,10 @@ export const useDogPostsStore = create<DogPostsState & DogPostsActions>((set, ge
   posts: [],
   myPosts: [],
   isLoading: false,
+  error: null,
 
   fetchPosts: async params => {
-    set({ isLoading: true });
+    set({ isLoading: true, error: null });
     try {
       const { data, error } = await supabase.rpc('list_dog_posts', {
         p_lat: params?.lat,
@@ -60,6 +64,8 @@ export const useDogPostsStore = create<DogPostsState & DogPostsActions>((set, ge
       });
       if (error) throw error;
       set({ posts: data ?? [] });
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'No pudimos cargar los avisos' });
     } finally {
       set({ isLoading: false });
     }

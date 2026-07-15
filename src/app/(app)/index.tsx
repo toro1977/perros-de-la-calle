@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { FlatList, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabBar, TAB_BAR_HEIGHT } from '@/components/bottom-tab-bar';
+import { Button } from '@/components/button';
 import { MapPostsView } from '@/components/map-posts-view';
 import { Skeleton } from '@/components/skeleton';
 import { StatusBadge } from '@/components/status-badge';
@@ -41,9 +42,11 @@ export default function PostsListScreen() {
   const posts = useDogPostsStore(s => s.posts);
   const fetchPosts = useDogPostsStore(s => s.fetchPosts);
   const isLoading = useDogPostsStore(s => s.isLoading);
+  const fetchError = useDogPostsStore(s => s.error);
   const [filter, setFilter] = useState<DogPostType | undefined>(undefined);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const viewMode = useFeedViewStore(s => s.viewMode);
+  const setViewMode = useFeedViewStore(s => s.setViewMode);
   const setScrolling = useScrollActivityStore(s => s.setScrolling);
   const scrollIdleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -77,43 +80,7 @@ export default function PostsListScreen() {
   useFocusEffect(reload);
 
   function renderItem({ item }: { item: DogPostListItem }) {
-    const secondaryParts = [
-      item.distance_km != null ? formatDistance(item.distance_km) : null,
-      item.breed || null,
-    ].filter(Boolean);
-
-    return (
-      <Link href={{ pathname: '/post/[id]', params: { id: item.id } }} asChild>
-        <Pressable
-          onPress={tapHaptic}
-          style={({ pressed }) =>
-            StyleSheet.flatten([styles.card, { backgroundColor: theme.surface, borderColor: theme.border, opacity: pressed ? 0.9 : 1 }])
-          }
-        >
-          <ThemedView style={styles.photoWrap}>
-            <Image source={{ uri: item.photo_urls[0] }} style={styles.photo} contentFit="cover" />
-            <ThemedView style={styles.photoBadge}>
-              <StatusBadge type={item.type as DogPostType} variant="solid" size="sm" />
-            </ThemedView>
-            <ThemedView style={styles.photoTimestamp}>
-              <ThemedText type="caption" style={styles.timestampText}>
-                {formatRelativeTime(item.created_at)}
-              </ThemedText>
-            </ThemedView>
-          </ThemedView>
-          <ThemedView style={styles.cardInfo}>
-            <ThemedText type="defaultBold" numberOfLines={1}>
-              {item.zone_text}
-            </ThemedText>
-            {secondaryParts.length > 0 && (
-              <ThemedText type="small" themeColor="textSecondary">
-                {secondaryParts.join(' · ')}
-              </ThemedText>
-            )}
-          </ThemedView>
-        </Pressable>
-      </Link>
-    );
+    return <PostCard item={item} />;
   }
 
   return (
@@ -128,6 +95,37 @@ export default function PostsListScreen() {
               Avisos cerca tuyo
             </ThemedText>
           </ThemedView>
+        </ThemedView>
+
+        <ThemedView style={[styles.viewToggle, { backgroundColor: theme.backgroundElement }]}>
+          <Pressable
+            style={[styles.viewToggleOption, viewMode === 'list' && { backgroundColor: theme.surface }]}
+            onPress={() => {
+              tapHaptic();
+              setViewMode('list');
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Ver lista"
+          >
+            <Ionicons name="list-outline" size={15} color={viewMode === 'list' ? theme.text : theme.textSecondary} />
+            <ThemedText type="small" style={{ color: viewMode === 'list' ? theme.text : theme.textSecondary, fontWeight: '600' }}>
+              Lista
+            </ThemedText>
+          </Pressable>
+          <Pressable
+            style={[styles.viewToggleOption, viewMode === 'map' && { backgroundColor: theme.surface }]}
+            onPress={() => {
+              tapHaptic();
+              setViewMode('map');
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Ver mapa"
+          >
+            <Ionicons name="map-outline" size={15} color={viewMode === 'map' ? theme.text : theme.textSecondary} />
+            <ThemedText type="small" style={{ color: viewMode === 'map' ? theme.text : theme.textSecondary, fontWeight: '600' }}>
+              Mapa
+            </ThemedText>
+          </Pressable>
         </ThemedView>
 
         <ThemedView style={styles.filters}>
@@ -166,7 +164,18 @@ export default function PostsListScreen() {
         )}
 
         {viewMode === 'list' ? (
-          isLoading && posts.length === 0 ? (
+          fetchError && posts.length === 0 ? (
+            <ThemedView style={styles.empty}>
+              <Ionicons name="cloud-offline-outline" size={32} color={theme.textSecondary} />
+              <ThemedText type="default" style={styles.emptyTitle}>
+                No pudimos cargar los avisos
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary" style={styles.emptyText}>
+                Revisá tu conexión e intentá de nuevo.
+              </ThemedText>
+              <Button label="Reintentar" variant="secondary" onPress={reload} />
+            </ThemedView>
+          ) : isLoading && posts.length === 0 ? (
             <ThemedView style={styles.listContent}>
               {[0, 1, 2].map(i => (
                 <PostCardSkeleton key={i} />
@@ -217,6 +226,60 @@ export default function PostsListScreen() {
   );
 }
 
+// Any remote image can fail to load (upload never finished, storage
+// hiccup, empty photo_urls) — falls back to a placeholder icon instead
+// of a blank hole where the most important element of the card should be.
+function PostCard({ item }: { item: DogPostListItem }) {
+  const theme = useTheme();
+  const [imageFailed, setImageFailed] = useState(false);
+  const hasPhoto = item.photo_urls.length > 0 && !imageFailed;
+  const secondaryParts = [item.distance_km != null ? formatDistance(item.distance_km) : null, item.breed || null].filter(Boolean);
+
+  return (
+    <Link href={{ pathname: '/post/[id]', params: { id: item.id } }} asChild>
+      <Pressable
+        onPress={tapHaptic}
+        style={({ pressed }) =>
+          StyleSheet.flatten([styles.card, { backgroundColor: theme.surface, borderColor: theme.border, opacity: pressed ? 0.9 : 1 }])
+        }
+      >
+        <ThemedView style={styles.photoWrap}>
+          {hasPhoto ? (
+            <Image
+              source={{ uri: item.photo_urls[0] }}
+              style={styles.photo}
+              contentFit="cover"
+              onError={() => setImageFailed(true)}
+            />
+          ) : (
+            <ThemedView style={[styles.photoFallback, { backgroundColor: theme.backgroundElement }]}>
+              <Ionicons name="paw" size={32} color={theme.textSecondary} />
+            </ThemedView>
+          )}
+          <ThemedView style={styles.photoBadge}>
+            <StatusBadge type={item.type as DogPostType} variant="solid" size="sm" />
+          </ThemedView>
+          <ThemedView style={styles.photoTimestamp}>
+            <ThemedText type="caption" style={styles.timestampText}>
+              {formatRelativeTime(item.created_at)}
+            </ThemedText>
+          </ThemedView>
+        </ThemedView>
+        <ThemedView style={styles.cardInfo}>
+          <ThemedText type="defaultBold" numberOfLines={1}>
+            {item.zone_text}
+          </ThemedText>
+          {secondaryParts.length > 0 && (
+            <ThemedText type="small" themeColor="textSecondary">
+              {secondaryParts.join(' · ')}
+            </ThemedText>
+          )}
+        </ThemedView>
+      </Pressable>
+    </Link>
+  );
+}
+
 function PostCardSkeleton() {
   const theme = useTheme();
   return (
@@ -249,6 +312,21 @@ const styles = StyleSheet.create({
   },
   title: {
     marginTop: 2,
+  },
+  viewToggle: {
+    flexDirection: 'row',
+    alignSelf: 'flex-start',
+    borderRadius: Radius.full,
+    padding: 2,
+    marginBottom: Spacing.three,
+  },
+  viewToggleOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.one + 2,
+    borderRadius: Radius.full,
   },
   filters: {
     flexDirection: 'row',
@@ -302,6 +380,12 @@ const styles = StyleSheet.create({
   photo: {
     width: '100%',
     height: '100%',
+  },
+  photoFallback: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   photoBadge: {
     position: 'absolute',
