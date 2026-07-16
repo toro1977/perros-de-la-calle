@@ -54,7 +54,7 @@ export type Database = {
           description: string | null
           id: string
           name: string | null
-          photo_url: string
+          photo_urls: string[]
           shelter_id: string
           status: string
           updated_at: string
@@ -65,7 +65,7 @@ export type Database = {
           description?: string | null
           id?: string
           name?: string | null
-          photo_url: string
+          photo_urls?: string[]
           shelter_id: string
           status?: string
           updated_at?: string
@@ -76,7 +76,7 @@ export type Database = {
           description?: string | null
           id?: string
           name?: string | null
-          photo_url?: string
+          photo_urls?: string[]
           shelter_id?: string
           status?: string
           updated_at?: string
@@ -684,7 +684,7 @@ export type Database = {
           p_breed?: string
           p_description?: string
           p_name: string
-          p_photo_url: string
+          p_photo_urls: string[]
         }
         Returns: string
       }
@@ -841,7 +841,7 @@ export type Database = {
           description: string
           id: string
           name: string
-          photo_url: string
+          photo_urls: string[]
           shelter_id: string
           shelter_name: string
           status: string
@@ -874,7 +874,7 @@ export type Database = {
           description: string
           id: string
           name: string
-          photo_url: string
+          photo_urls: string[]
           shelter_id: string
           shelter_name: string
           status: string
