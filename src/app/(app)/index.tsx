@@ -12,9 +12,11 @@ import { Skeleton } from '@/components/skeleton';
 import { StatusBadge } from '@/components/status-badge';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { DOG_POST_TYPE_META } from '@/constants/dog-post-types';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { getCurrentLocation } from '@/services/location';
+import { AdoptionDogListItem, useAdoptionDogsStore } from '@/stores/adoptionDogsStore';
 import { useAuthStore } from '@/stores/authStore';
 import { DogPostListItem, useDogPostsStore } from '@/stores/dogPostsStore';
 import { useFeedViewStore } from '@/stores/feedViewStore';
@@ -24,14 +26,17 @@ import { formatDistance } from '@/utils/format-distance';
 import { tapHaptic } from '@/utils/haptics';
 import { formatRelativeTime } from '@/utils/relative-time';
 
+type FeedFilter = DogPostType | 'adoption';
+
 // No explicit "Todos" chip — tapping the active filter again clears it
-// back to "all", the same pattern Instagram/Mercado Libre use. With four
-// chips ("Encontrados"/"Callejeros" are long words) there isn't room for
-// an extra one on a phone-width screen without shrinking text.
-const FILTERS: { label: string; value: DogPostType }[] = [
+// back to "all", the same pattern Instagram/Mercado Libre use. Four chips
+// don't fit in one row without shrinking text, so they lay out 2x2
+// instead (see styles.filterChip's flexBasis).
+const FILTERS: { label: string; value: FeedFilter }[] = [
   { label: 'Perdidos', value: 'lost' },
   { label: 'Encontrados', value: 'found' },
   { label: 'Callejeros', value: 'stray' },
+  { label: 'Adopción', value: 'adoption' },
 ];
 
 export default function PostsListScreen() {
@@ -41,14 +46,23 @@ export default function PostsListScreen() {
   const profile = useAuthStore(s => s.profile);
   const posts = useDogPostsStore(s => s.posts);
   const fetchPosts = useDogPostsStore(s => s.fetchPosts);
-  const isLoading = useDogPostsStore(s => s.isLoading);
-  const fetchError = useDogPostsStore(s => s.error);
-  const [filter, setFilter] = useState<DogPostType | undefined>(undefined);
+  const isLoadingPosts = useDogPostsStore(s => s.isLoading);
+  const postsError = useDogPostsStore(s => s.error);
+  const adoptionDogs = useAdoptionDogsStore(s => s.dogs);
+  const fetchAdoptionDogs = useAdoptionDogsStore(s => s.fetchAdoptionDogs);
+  const isLoadingAdoption = useAdoptionDogsStore(s => s.isLoading);
+  const adoptionError = useAdoptionDogsStore(s => s.error);
+  const [filter, setFilter] = useState<FeedFilter | undefined>(undefined);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const viewMode = useFeedViewStore(s => s.viewMode);
   const setViewMode = useFeedViewStore(s => s.setViewMode);
   const setScrolling = useScrollActivityStore(s => s.setScrolling);
   const scrollIdleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const isAdoptionMode = filter === 'adoption';
+  const listData = isAdoptionMode ? adoptionDogs : posts;
+  const isLoading = isAdoptionMode ? isLoadingAdoption : isLoadingPosts;
+  const fetchError = isAdoptionMode ? adoptionError : postsError;
 
   useEffect(() => {
     return () => {
@@ -74,13 +88,17 @@ export default function PostsListScreen() {
   }, []);
 
   const reload = useCallback(() => {
-    fetchPosts({ lat: coords?.lat, lng: coords?.lng, type: filter });
-  }, [coords, filter]);
+    if (filter === 'adoption') {
+      fetchAdoptionDogs();
+    } else {
+      fetchPosts({ lat: coords?.lat, lng: coords?.lng, type: filter });
+    }
+  }, [coords, filter, fetchAdoptionDogs, fetchPosts]);
 
   useFocusEffect(reload);
 
-  function renderItem({ item }: { item: DogPostListItem }) {
-    return <PostCard item={item} />;
+  function renderItem({ item }: { item: DogPostListItem | AdoptionDogListItem }) {
+    return 'zone_text' in item ? <PostCard item={item} /> : <AdoptionDogCard item={item} />;
   }
 
   return (
@@ -97,36 +115,38 @@ export default function PostsListScreen() {
           </ThemedView>
         </ThemedView>
 
-        <ThemedView style={[styles.viewToggle, { backgroundColor: theme.backgroundElement }]}>
-          <Pressable
-            style={[styles.viewToggleOption, viewMode === 'list' && { backgroundColor: theme.surface }]}
-            onPress={() => {
-              tapHaptic();
-              setViewMode('list');
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Ver lista"
-          >
-            <Ionicons name="list-outline" size={15} color={viewMode === 'list' ? theme.text : theme.textSecondary} />
-            <ThemedText type="small" style={{ color: viewMode === 'list' ? theme.text : theme.textSecondary, fontWeight: '600' }}>
-              Lista
-            </ThemedText>
-          </Pressable>
-          <Pressable
-            style={[styles.viewToggleOption, viewMode === 'map' && { backgroundColor: theme.surface }]}
-            onPress={() => {
-              tapHaptic();
-              setViewMode('map');
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Ver mapa"
-          >
-            <Ionicons name="map-outline" size={15} color={viewMode === 'map' ? theme.text : theme.textSecondary} />
-            <ThemedText type="small" style={{ color: viewMode === 'map' ? theme.text : theme.textSecondary, fontWeight: '600' }}>
-              Mapa
-            </ThemedText>
-          </Pressable>
-        </ThemedView>
+        {!isAdoptionMode && (
+          <ThemedView style={[styles.viewToggle, { backgroundColor: theme.backgroundElement }]}>
+            <Pressable
+              style={[styles.viewToggleOption, viewMode === 'list' && { backgroundColor: theme.surface }]}
+              onPress={() => {
+                tapHaptic();
+                setViewMode('list');
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Ver lista"
+            >
+              <Ionicons name="list-outline" size={15} color={viewMode === 'list' ? theme.text : theme.textSecondary} />
+              <ThemedText type="small" style={{ color: viewMode === 'list' ? theme.text : theme.textSecondary, fontWeight: '600' }}>
+                Lista
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              style={[styles.viewToggleOption, viewMode === 'map' && { backgroundColor: theme.surface }]}
+              onPress={() => {
+                tapHaptic();
+                setViewMode('map');
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Ver mapa"
+            >
+              <Ionicons name="map-outline" size={15} color={viewMode === 'map' ? theme.text : theme.textSecondary} />
+              <ThemedText type="small" style={{ color: viewMode === 'map' ? theme.text : theme.textSecondary, fontWeight: '600' }}>
+                Mapa
+              </ThemedText>
+            </Pressable>
+          </ThemedView>
+        )}
 
         <ThemedView style={styles.filters}>
           {FILTERS.map(f => {
@@ -155,27 +175,35 @@ export default function PostsListScreen() {
         </ThemedView>
 
         {profile?.role === 'shelter' && (
-          <ThemedView style={[styles.banner, { backgroundColor: theme.accentSoft, borderColor: theme.accent }]}>
-            <Ionicons name="home-outline" size={18} color={theme.accent} />
-            <ThemedText type="small" style={{ color: theme.accent, flex: 1 }}>
-              Cuenta de refugio — publicar en adopción llega en otra épica.
-            </ThemedText>
-          </ThemedView>
+          <Link href={{ pathname: '/new-post', params: { type: 'adoption' } }} asChild>
+            <Pressable
+              onPress={tapHaptic}
+              style={({ pressed }) =>
+                StyleSheet.flatten([styles.banner, { backgroundColor: theme.accentSoft, borderColor: theme.accent, opacity: pressed ? 0.85 : 1 }])
+              }
+            >
+              <Ionicons name="home-outline" size={18} color={theme.accent} />
+              <ThemedText type="small" style={{ color: theme.accent, flex: 1 }}>
+                Cuenta de refugio — publicá un perro en adopción.
+              </ThemedText>
+              <Ionicons name="chevron-forward" size={16} color={theme.accent} />
+            </Pressable>
+          </Link>
         )}
 
-        {viewMode === 'list' ? (
-          fetchError && posts.length === 0 ? (
+        {isAdoptionMode || viewMode === 'list' ? (
+          fetchError && listData.length === 0 ? (
             <ThemedView style={styles.empty}>
               <Ionicons name="cloud-offline-outline" size={32} color={theme.textSecondary} />
               <ThemedText type="default" style={styles.emptyTitle}>
-                No pudimos cargar los avisos
+                {isAdoptionMode ? 'No pudimos cargar los perros en adopción' : 'No pudimos cargar los avisos'}
               </ThemedText>
               <ThemedText type="small" themeColor="textSecondary" style={styles.emptyText}>
                 Revisá tu conexión e intentá de nuevo.
               </ThemedText>
               <Button label="Reintentar" variant="secondary" onPress={reload} />
             </ThemedView>
-          ) : isLoading && posts.length === 0 ? (
+          ) : isLoading && listData.length === 0 ? (
             <ThemedView style={styles.listContent}>
               {[0, 1, 2].map(i => (
                 <PostCardSkeleton key={i} />
@@ -184,7 +212,7 @@ export default function PostsListScreen() {
           ) : (
             <ThemedView style={styles.listWrap}>
               <FlatList
-                data={posts}
+                data={listData}
                 keyExtractor={item => item.id}
                 renderItem={renderItem}
                 onRefresh={reload}
@@ -196,10 +224,12 @@ export default function PostsListScreen() {
                   <ThemedView style={styles.empty}>
                     <Ionicons name="paw-outline" size={32} color={theme.textSecondary} />
                     <ThemedText type="default" style={styles.emptyTitle}>
-                      Todavía no hay avisos por acá
+                      {isAdoptionMode ? 'Todavía no hay perros en adopción' : 'Todavía no hay avisos por acá'}
                     </ThemedText>
                     <ThemedText type="small" themeColor="textSecondary" style={styles.emptyText}>
-                      ¿Viste un perro perdido, encontrado o callejero? Sé el primero en publicarlo.
+                      {isAdoptionMode
+                        ? 'Los refugios todavía no publicaron perros en adopción.'
+                        : '¿Viste un perro perdido, encontrado o callejero? Sé el primero en publicarlo.'}
                     </ThemedText>
                   </ThemedView>
                 }
@@ -257,7 +287,7 @@ function PostCard({ item }: { item: DogPostListItem }) {
             </ThemedView>
           )}
           <ThemedView style={styles.photoBadge}>
-            <StatusBadge type={item.type as DogPostType} variant="solid" size="sm" />
+            <StatusBadge meta={DOG_POST_TYPE_META[item.type as DogPostType]} variant="solid" size="sm" />
           </ThemedView>
           <ThemedView style={styles.photoTimestamp}>
             <ThemedText type="caption" style={styles.timestampText}>
@@ -271,6 +301,51 @@ function PostCard({ item }: { item: DogPostListItem }) {
           </ThemedText>
           {secondaryParts.length > 0 && (
             <ThemedText type="small" themeColor="textSecondary">
+              {secondaryParts.join(' · ')}
+            </ThemedText>
+          )}
+        </ThemedView>
+      </Pressable>
+    </Link>
+  );
+}
+
+// adoption_dogs has no lat/lng/status filtering to show here — list_adoption_dogs
+// already only returns status='available' dogs, so no StatusBadge is needed.
+function AdoptionDogCard({ item }: { item: AdoptionDogListItem }) {
+  const theme = useTheme();
+  const [imageFailed, setImageFailed] = useState(false);
+  const hasPhoto = item.photo_urls.length > 0 && !imageFailed;
+  const secondaryParts = [item.breed || null, item.shelter_name].filter(Boolean);
+
+  return (
+    <Link href={{ pathname: '/adoption/[id]', params: { id: item.id } }} asChild>
+      <Pressable
+        onPress={tapHaptic}
+        style={({ pressed }) =>
+          StyleSheet.flatten([styles.card, { backgroundColor: theme.surface, borderColor: theme.border, opacity: pressed ? 0.9 : 1 }])
+        }
+      >
+        <ThemedView style={styles.photoWrap}>
+          {hasPhoto ? (
+            <Image
+              source={{ uri: item.photo_urls[0] }}
+              style={styles.photo}
+              contentFit="cover"
+              onError={() => setImageFailed(true)}
+            />
+          ) : (
+            <ThemedView style={[styles.photoFallback, { backgroundColor: theme.backgroundElement }]}>
+              <Ionicons name="paw" size={32} color={theme.textSecondary} />
+            </ThemedView>
+          )}
+        </ThemedView>
+        <ThemedView style={styles.cardInfo}>
+          <ThemedText type="defaultBold" numberOfLines={1}>
+            {item.name || 'Perro en adopción'}
+          </ThemedText>
+          {secondaryParts.length > 0 && (
+            <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
               {secondaryParts.join(' · ')}
             </ThemedText>
           )}
@@ -335,6 +410,8 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.three,
   },
   filterChip: {
+    flexBasis: '48%',
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 10,

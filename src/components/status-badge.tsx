@@ -2,20 +2,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { DOG_POST_TYPE_META } from '@/constants/dog-post-types';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { DogPostType } from '@/types/database.types';
+
+type StatusMeta = { label: string; icon: keyof typeof Ionicons.glyphMap; tone: 'danger' | 'success' | 'warning' };
 
 type Props = {
-  type: DogPostType;
+  meta: StatusMeta;
   variant?: 'solid' | 'soft';
   size?: 'sm' | 'md';
 };
 
-export function StatusBadge({ type, variant = 'soft', size = 'md' }: Props) {
+export function StatusBadge({ meta, variant = 'soft', size = 'md' }: Props) {
   const theme = useTheme();
-  const meta = DOG_POST_TYPE_META[type];
   const toneColor = theme[meta.tone];
   const toneSoft = theme[`${meta.tone}Soft` as const];
   const iconSize = size === 'sm' ? 12 : 14;

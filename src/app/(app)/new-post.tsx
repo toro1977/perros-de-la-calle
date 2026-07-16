@@ -15,13 +15,28 @@ import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { CurrentLocation, getCurrentLocation } from '@/services/location';
 import { PickedPhoto, pickPhotos } from '@/services/photoPicker';
+import { useAdoptionDogsStore } from '@/stores/adoptionDogsStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useDogPostsStore } from '@/stores/dogPostsStore';
 import { DogPostType } from '@/types/database.types';
 import { scrollFieldIntoView } from '@/utils/scroll-to-input';
 
-const TYPE_OPTIONS: DogPostType[] = ['lost', 'found', 'stray'];
+type FormType = DogPostType | 'adoption';
 const MAX_PHOTOS = 4;
+
+// Not a DogPostType — adoption dogs live in a separate table with no
+// location/event date, but the type-selector chip reuses the same
+// {label, hint, icon, tone} shape as DOG_POST_TYPE_META entries.
+const ADOPTION_TYPE_META = {
+  label: 'En adopción',
+  hint: 'Perro del refugio buscando familia — sin ubicación, hasta 4 fotos.',
+  icon: 'heart-outline' as const,
+  tone: 'success' as const,
+};
+
+function getTypeMeta(value: FormType) {
+  return value === 'adoption' ? ADOPTION_TYPE_META : DOG_POST_TYPE_META[value];
+}
 
 // A photo slot is either one already uploaded (editing an existing post)
 // or one freshly picked on-device that still needs uploading on submit.
@@ -33,16 +48,23 @@ function photoUri(slot: PhotoSlot): string {
 
 export default function NewPostScreen() {
   const theme = useTheme();
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, type: typeParam } = useLocalSearchParams<{ id?: string; type?: string }>();
   const isEditMode = !!id;
   const profile = useAuthStore(s => s.profile);
   const createPost = useDogPostsStore(s => s.createPost);
   const updatePost = useDogPostsStore(s => s.updatePost);
   const getPost = useDogPostsStore(s => s.getPost);
-  const isLoading = useDogPostsStore(s => s.isLoading);
+  const isLoadingPost = useDogPostsStore(s => s.isLoading);
+  const createAdoptionDog = useAdoptionDogsStore(s => s.createAdoptionDog);
+  const isLoadingAdoption = useAdoptionDogsStore(s => s.isLoading);
 
-  const [type, setType] = useState<DogPostType>('lost');
+  // Adoption alta only, no edit mode yet — editing/status/borrado de
+  // perros en adopción vive en "Mis avisos", no acá.
+  const typeOptions: FormType[] = profile?.role === 'shelter' ? ['lost', 'found', 'stray', 'adoption'] : ['lost', 'found', 'stray'];
+
+  const [type, setType] = useState<FormType>(typeParam === 'adoption' && profile?.role === 'shelter' ? 'adoption' : 'lost');
   const [photos, setPhotos] = useState<PhotoSlot[]>([]);
+  const [name, setName] = useState('');
   const [breed, setBreed] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -50,8 +72,12 @@ export default function NewPostScreen() {
   const [isLocating, setIsLocating] = useState(!isEditMode);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+  const nameRef = useRef<TextInput>(null);
   const breedRef = useRef<TextInput>(null);
   const descriptionRef = useRef<TextInput>(null);
+
+  const isAdoption = type === 'adoption';
+  const isLoading = isAdoption ? isLoadingAdoption : isLoadingPost;
 
   useEffect(() => {
     // Editing: prefill from the existing post instead of the GPS.
@@ -91,14 +117,29 @@ export default function NewPostScreen() {
       setError('Falta al menos una foto del perro.');
       return;
     }
-    if (!location) {
+    if (isAdoption) {
+      if (!name.trim()) {
+        setError('Falta el nombre del perro.');
+        return;
+      }
+    } else if (!location) {
       setError('Falta la zona del aviso — elegila en el mapa.');
       return;
     }
     setError(null);
 
     try {
-      if (isEditMode && id) {
+      if (type === 'adoption') {
+        await createAdoptionDog({
+          photos: photos.filter(p => p.kind === 'new').map(p => p.photo),
+          userId: profile.id,
+          name: name.trim(),
+          breed: breed.trim() || null,
+          description: description.trim() || null,
+        });
+      } else if (!location) {
+        return; // unreachable — validated above when type !== 'adoption'
+      } else if (isEditMode && id) {
         await updatePost({
           id,
           userId: profile.id,
@@ -148,7 +189,9 @@ export default function NewPostScreen() {
           >
             <Ionicons name="chevron-back" size={22} color={theme.text} />
           </Pressable>
-          <ThemedText type="subtitle">{isEditMode ? 'Editar aviso' : 'Publicar aviso'}</ThemedText>
+          <ThemedText type="subtitle">
+            {isEditMode ? 'Editar aviso' : isAdoption ? 'Publicar en adopción' : 'Publicar aviso'}
+          </ThemedText>
           <ThemedView style={styles.backButton} />
         </ThemedView>
 
@@ -163,8 +206,8 @@ export default function NewPostScreen() {
               Tipo de aviso
             </ThemedText>
             <ThemedView style={styles.typeRow}>
-              {TYPE_OPTIONS.map(value => {
-                const meta = DOG_POST_TYPE_META[value];
+              {typeOptions.map(value => {
+                const meta = getTypeMeta(value);
                 const selected = type === value;
                 const toneColor = theme[meta.tone];
                 const toneSoft = theme[`${meta.tone}Soft` as const];
@@ -173,6 +216,7 @@ export default function NewPostScreen() {
                     key={value}
                     style={[
                       styles.typeOption,
+                      typeOptions.length > 3 && styles.typeOptionHalf,
                       {
                         backgroundColor: selected ? toneSoft : theme.backgroundElement,
                         borderColor: selected ? toneColor : theme.border,
@@ -189,8 +233,19 @@ export default function NewPostScreen() {
               })}
             </ThemedView>
             <ThemedText type="caption" themeColor="textSecondary" style={styles.typeHint}>
-              {DOG_POST_TYPE_META[type].hint}
+              {getTypeMeta(type).hint}
             </ThemedText>
+
+            {isAdoption && (
+              <TextField
+                ref={nameRef}
+                label="Nombre"
+                placeholder="Ej. Rocky"
+                value={name}
+                onChangeText={setName}
+                onFocus={() => scrollFieldIntoView(scrollRef.current, nameRef.current)}
+              />
+            )}
 
             <ThemedText type="caption" themeColor="textSecondary" style={styles.sectionLabel}>
               Fotos
@@ -287,25 +342,29 @@ export default function NewPostScreen() {
               style={styles.textArea}
             />
 
-            <ThemedText type="caption" themeColor="textSecondary" style={styles.sectionLabel}>
-              Zona
-            </ThemedText>
-            <Pressable
-              style={[styles.locationHint, { backgroundColor: theme.backgroundElement }]}
-              onPress={() => setShowLocationPicker(true)}
-            >
-              <Ionicons name="location-outline" size={16} color={theme.textSecondary} />
-              {isLocating ? (
-                <ThemedText type="small" themeColor="textSecondary" style={styles.locationText}>
-                  Buscando tu ubicación...
+            {!isAdoption && (
+              <>
+                <ThemedText type="caption" themeColor="textSecondary" style={styles.sectionLabel}>
+                  Zona
                 </ThemedText>
-              ) : (
-                <ThemedText type="small" numberOfLines={1} style={styles.locationText}>
-                  {location?.zoneText ?? 'Elegí la zona en el mapa'}
-                </ThemedText>
-              )}
-              <ThemedText type="linkPrimary">Cambiar</ThemedText>
-            </Pressable>
+                <Pressable
+                  style={[styles.locationHint, { backgroundColor: theme.backgroundElement }]}
+                  onPress={() => setShowLocationPicker(true)}
+                >
+                  <Ionicons name="location-outline" size={16} color={theme.textSecondary} />
+                  {isLocating ? (
+                    <ThemedText type="small" themeColor="textSecondary" style={styles.locationText}>
+                      Buscando tu ubicación...
+                    </ThemedText>
+                  ) : (
+                    <ThemedText type="small" numberOfLines={1} style={styles.locationText}>
+                      {location?.zoneText ?? 'Elegí la zona en el mapa'}
+                    </ThemedText>
+                  )}
+                  <ThemedText type="linkPrimary">Cambiar</ThemedText>
+                </Pressable>
+              </>
+            )}
 
             {error && (
               <ThemedView style={[styles.errorBox, { backgroundColor: theme.dangerSoft }]}>
@@ -319,10 +378,10 @@ export default function NewPostScreen() {
 
           <ThemedView style={[styles.footer, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
             <Button
-              label={isEditMode ? 'Guardar cambios' : 'Publicar'}
+              label={isEditMode ? 'Guardar cambios' : isAdoption ? 'Publicar en adopción' : 'Publicar'}
               onPress={handleSubmit}
               loading={isLoading}
-              disabled={photos.length === 0}
+              disabled={photos.length === 0 || (isAdoption && !name.trim())}
             />
           </ThemedView>
         </KeyboardAvoidingView>
@@ -389,6 +448,7 @@ const styles = StyleSheet.create({
   },
   typeRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: Spacing.two,
   },
   typeOption: {
@@ -398,6 +458,12 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.three,
     alignItems: 'center',
     gap: Spacing.one,
+  },
+  // 4 options (shelter accounts see "En adopción" too) lay out 2x2
+  // instead of squeezing into one row.
+  typeOptionHalf: {
+    flexBasis: '48%',
+    flexGrow: 1,
   },
   photoPicker: {
     height: 240,

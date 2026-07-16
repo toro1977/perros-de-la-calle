@@ -8,14 +8,11 @@ import {
   Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  Platform,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   useWindowDimensions,
 } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '@/components/button';
 import { Skeleton } from '@/components/skeleton';
@@ -23,42 +20,29 @@ import { StatusBadge } from '@/components/status-badge';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ZoomableImage } from '@/components/zoomable-image';
-import { DOG_POST_TYPE_META } from '@/constants/dog-post-types';
+import { ADOPTION_STATUS_META } from '@/constants/adoption-status';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { AdoptionDogDetail, useAdoptionDogsStore } from '@/stores/adoptionDogsStore';
 import { useAuthStore } from '@/stores/authStore';
-import { DogPostDetail, useDogPostsStore } from '@/stores/dogPostsStore';
-import { DogPostType } from '@/types/database.types';
-import { formatEventDate } from '@/utils/format-date';
+import { AdoptionDogStatus } from '@/types/database.types';
 import { normalizeArPhone } from '@/utils/phone';
 
-function buildWhatsAppUrl(e164Phone: string, zoneText: string) {
+function buildWhatsAppUrl(e164Phone: string, dogName: string | null) {
   const digits = e164Phone.replace(/\D/g, '');
-  const message = `Hola! Vi tu aviso de un perro en ${zoneText} en la app Perros de la calle.`;
+  const message = dogName
+    ? `Hola! Vi a ${dogName} en adopción en la app Perros de la calle.`
+    : 'Hola! Vi un perro en adopción en la app Perros de la calle.';
   return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
 }
 
-// Public landing (src/app/p/[id].tsx), deployed via EAS Hosting — opens
-// for anyone, app installed or not. Update this if the site ever moves
-// to a custom domain.
-const PUBLIC_SITE_URL = 'https://perros-de-la-calle.expo.app';
-
-function buildShareMessage(post: DogPostDetail) {
-  const typeLabel = DOG_POST_TYPE_META[post.type as DogPostType].label;
-  const breedPart = post.breed ? ` · ${post.breed}` : '';
-  const link = `${PUBLIC_SITE_URL}/p/${post.id}`;
-  return `${typeLabel} en ${post.zone_text}${breedPart}. Mirá el aviso en Perros de la calle: ${link}`;
-}
-
-export default function PostDetailScreen() {
+export default function AdoptionDogDetailScreen() {
   const theme = useTheme();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const { id } = useLocalSearchParams<{ id: string }>();
   const profile = useAuthStore(s => s.profile);
-  const getPost = useDogPostsStore(s => s.getPost);
-  const resolvePost = useDogPostsStore(s => s.resolvePost);
-  const [post, setPost] = useState<DogPostDetail | null>(null);
-  const [isResolving, setIsResolving] = useState(false);
+  const getAdoptionDog = useAdoptionDogsStore(s => s.getAdoptionDog);
+  const [dog, setDog] = useState<AdoptionDogDetail | null>(null);
   const [contactError, setContactError] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
@@ -76,48 +60,21 @@ export default function PostDetailScreen() {
   }
 
   useEffect(() => {
-    if (id) getPost(id).then(setPost);
+    if (id) getAdoptionDog(id).then(setDog);
   }, [id]);
 
-  async function handleResolve() {
-    if (!post) return;
-    setIsResolving(true);
-    try {
-      await resolvePost(post.id);
-      router.back();
-    } finally {
-      setIsResolving(false);
-    }
-  }
-
-  async function handleShare() {
-    if (!post) return;
-    await Share.share({ message: buildShareMessage(post) });
-  }
-
-  function handleOpenMaps() {
-    if (!post) return;
-    const label = encodeURIComponent(post.zone_text);
-    const url = Platform.select({
-      ios: `maps:0,0?q=${label}@${post.lat},${post.lng}`,
-      android: `geo:0,0?q=${post.lat},${post.lng}(${label})`,
-      default: `https://www.google.com/maps/search/?api=1&query=${post.lat},${post.lng}`,
-    });
-    Linking.openURL(url);
-  }
-
   async function handleContact() {
-    if (!post) return;
-    const normalizedPhone = post.contact_phone ? normalizeArPhone(post.contact_phone) : null;
+    if (!dog) return;
+    const normalizedPhone = dog.contact_phone ? normalizeArPhone(dog.contact_phone) : null;
     if (!normalizedPhone) {
-      setContactError('Quien publicó este aviso no dejó un teléfono de contacto válido.');
+      setContactError('El refugio no dejó un teléfono de contacto válido.');
       return;
     }
     setContactError(null);
-    await Linking.openURL(buildWhatsAppUrl(normalizedPhone, post.zone_text));
+    await Linking.openURL(buildWhatsAppUrl(normalizedPhone, dog.name));
   }
 
-  if (!post) {
+  if (!dog) {
     return (
       <ThemedView style={styles.container}>
         <Skeleton style={styles.photoWrap} />
@@ -131,9 +88,8 @@ export default function PostDetailScreen() {
     );
   }
 
-  const isOwner = profile?.id === post.user_id;
-  const showResolveAction = isOwner && post.status === 'active';
-  const showContactAction = !isOwner && post.status === 'active';
+  const isOwner = profile?.id === dog.shelter_id;
+  const showContactAction = !isOwner && dog.status === 'available';
 
   return (
     <ThemedView style={styles.container}>
@@ -146,7 +102,7 @@ export default function PostDetailScreen() {
             onMomentumScrollEnd={handlePhotoScrollEnd}
             style={styles.photo}
           >
-            {post.photo_urls.map((url, index) => (
+            {dog.photo_urls.map((url, index) => (
               <Pressable
                 key={url}
                 onPress={() => {
@@ -181,40 +137,29 @@ export default function PostDetailScreen() {
             >
               <Ionicons name="chevron-back" size={22} color="#fff" />
             </Pressable>
-            <ThemedView style={styles.photoOverlayActions}>
-              {isOwner && (
-                <Pressable
-                  style={[styles.backButton, { backgroundColor: 'rgba(0,0,0,0.45)' }]}
-                  onPress={() => router.push({ pathname: '/new-post', params: { id: post.id } })}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel="Editar aviso"
-                >
-                  <Ionicons name="pencil-outline" size={20} color="#fff" />
-                </Pressable>
-              )}
+            {isOwner && (
               <Pressable
                 style={[styles.backButton, { backgroundColor: 'rgba(0,0,0,0.45)' }]}
-                onPress={handleShare}
+                onPress={() => router.push('/my-posts')}
                 hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel="Compartir aviso"
+                accessibilityLabel="Gestionar en Mis avisos"
               >
-                <Ionicons name="share-outline" size={20} color="#fff" />
+                <Ionicons name="settings-outline" size={20} color="#fff" />
               </Pressable>
-            </ThemedView>
+            )}
           </SafeAreaView>
           <ThemedView style={styles.photoFooter}>
-            {post.photo_urls.length > 1 && (
+            {dog.photo_urls.length > 1 && (
               <ThemedView style={styles.dotsRow}>
-                {post.photo_urls.map((url, i) => (
+                {dog.photo_urls.map((url, i) => (
                   <ThemedView key={url} style={[styles.dot, i === activeIndex && styles.dotActive]} />
                 ))}
               </ThemedView>
             )}
-            <StatusBadge meta={DOG_POST_TYPE_META[post.type as DogPostType]} variant="solid" />
+            <StatusBadge meta={ADOPTION_STATUS_META[dog.status as AdoptionDogStatus]} variant="solid" />
             <ThemedText type="title" style={styles.zoneOnPhoto}>
-              {post.zone_text}
+              {dog.name || 'Perro en adopción'}
             </ThemedText>
           </ThemedView>
         </ThemedView>
@@ -222,44 +167,20 @@ export default function PostDetailScreen() {
         <ThemedView style={styles.body}>
           <ThemedView style={styles.infoList}>
             <ThemedView style={styles.infoRow}>
-              <Ionicons name="calendar-outline" size={18} color={theme.textSecondary} />
-              <ThemedText type="default">{formatEventDate(post.event_date)}</ThemedText>
+              <Ionicons name="home-outline" size={18} color={theme.textSecondary} />
+              <ThemedText type="default">{dog.shelter_name}</ThemedText>
             </ThemedView>
-            {post.breed && (
+            {dog.breed && (
               <ThemedView style={styles.infoRow}>
                 <Ionicons name="paw-outline" size={18} color={theme.textSecondary} />
-                <ThemedText type="default">{post.breed}</ThemedText>
+                <ThemedText type="default">{dog.breed}</ThemedText>
               </ThemedView>
             )}
           </ThemedView>
 
-          <ThemedView style={styles.mapCard}>
-            <MapView
-              style={styles.map}
-              initialRegion={{ latitude: post.lat, longitude: post.lng, latitudeDelta: 0.01, longitudeDelta: 0.01 }}
-              scrollEnabled={false}
-              zoomEnabled={false}
-              rotateEnabled={false}
-              pitchEnabled={false}
-            >
-              <Marker coordinate={{ latitude: post.lat, longitude: post.lng }} pinColor={theme[DOG_POST_TYPE_META[post.type as DogPostType].tone]} />
-            </MapView>
-            <Pressable
-              style={[styles.mapOpenButton, { backgroundColor: theme.surface, borderColor: theme.border }]}
-              onPress={handleOpenMaps}
-              accessibilityRole="button"
-              accessibilityLabel="Abrir en Maps"
-            >
-              <Ionicons name="navigate-outline" size={16} color={theme.text} />
-              <ThemedText type="small" style={{ fontWeight: '600' }}>
-                Abrir en Maps
-              </ThemedText>
-            </Pressable>
-          </ThemedView>
-
-          {post.description && (
+          {dog.description && (
             <ThemedView style={[styles.descriptionBox, { backgroundColor: theme.backgroundElement }]}>
-              <ThemedText type="default">{post.description}</ThemedText>
+              <ThemedText type="default">{dog.description}</ThemedText>
             </ThemedView>
           )}
 
@@ -274,24 +195,14 @@ export default function PostDetailScreen() {
         </ThemedView>
       </ScrollView>
 
-      {(showResolveAction || showContactAction) && (
+      {showContactAction && (
         <SafeAreaView edges={['bottom']} style={[styles.footer, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
-          {showResolveAction && (
-            <Button
-              label={isResolving ? 'Actualizando...' : 'Marcar como resuelto'}
-              onPress={handleResolve}
-              loading={isResolving}
-              icon={<Ionicons name="checkmark-circle-outline" size={18} color={theme.onAccent} />}
-            />
-          )}
-          {showContactAction && (
-            <Button
-              label="Vi a este perro"
-              variant="danger"
-              onPress={handleContact}
-              icon={<Ionicons name="logo-whatsapp" size={18} color={theme.onAccent} />}
-            />
-          )}
+          <Button
+            label="Quiero adoptarlo"
+            variant="danger"
+            onPress={handleContact}
+            icon={<Ionicons name="logo-whatsapp" size={18} color={theme.onAccent} />}
+          />
         </SafeAreaView>
       )}
 
@@ -311,7 +222,7 @@ export default function PostDetailScreen() {
                 contentOffset={{ x: fullscreenIndex * screenWidth, y: 0 }}
                 style={styles.fullscreenScroll}
               >
-                {post.photo_urls.map(url => (
+                {dog.photo_urls.map(url => (
                   <ZoomableImage
                     key={url}
                     uri={url}
@@ -332,10 +243,10 @@ export default function PostDetailScreen() {
                   <Ionicons name="close" size={24} color="#fff" />
                 </Pressable>
               </SafeAreaView>
-              {post.photo_urls.length > 1 && (
+              {dog.photo_urls.length > 1 && (
                 <SafeAreaView edges={['bottom']} style={styles.fullscreenBottom}>
                   <ThemedView style={styles.dotsRow}>
-                    {post.photo_urls.map((url, i) => (
+                    {dog.photo_urls.map((url, i) => (
                       <ThemedView key={url} style={[styles.dot, i === activeIndex && styles.dotActive]} />
                     ))}
                   </ThemedView>
@@ -352,11 +263,6 @@ export default function PostDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   scroll: {
     paddingBottom: Spacing.six,
@@ -399,11 +305,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: Spacing.one,
-  },
-  photoOverlayActions: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-    backgroundColor: 'transparent',
   },
   photoFooter: {
     position: 'absolute',
@@ -452,31 +353,6 @@ const styles = StyleSheet.create({
   descriptionBox: {
     borderRadius: Radius.md,
     padding: Spacing.three,
-  },
-  mapCard: {
-    height: 180,
-    borderRadius: Radius.md,
-    overflow: 'hidden',
-  },
-  map: {
-    flex: 1,
-  },
-  mapOpenButton: {
-    position: 'absolute',
-    bottom: Spacing.two,
-    right: Spacing.two,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    borderWidth: 1,
-    borderRadius: Radius.full,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one + 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
   },
   errorBox: {
     flexDirection: 'row',

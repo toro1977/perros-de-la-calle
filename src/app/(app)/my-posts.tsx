@@ -8,6 +8,7 @@ import { BottomTabBar, TAB_BAR_HEIGHT } from '@/components/bottom-tab-bar';
 import { StatusBadge } from '@/components/status-badge';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { DOG_POST_TYPE_META } from '@/constants/dog-post-types';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuthStore } from '@/stores/authStore';
@@ -51,7 +52,7 @@ export default function MyPostsScreen() {
           <ThemedView style={styles.photoWrap}>
             <Image source={{ uri: item.photo_urls[0] }} style={styles.photo} contentFit="cover" />
             <ThemedView style={styles.photoBadge}>
-              <StatusBadge type={item.type as DogPostType} variant="solid" size="sm" />
+              <StatusBadge meta={DOG_POST_TYPE_META[item.type as DogPostType]} variant="solid" size="sm" />
             </ThemedView>
             {resolved && (
               <ThemedView style={styles.resolvedOverlay}>

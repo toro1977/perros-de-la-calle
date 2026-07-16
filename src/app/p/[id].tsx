@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/skeleton';
 import { StatusBadge } from '@/components/status-badge';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { DOG_POST_TYPE_META } from '@/constants/dog-post-types';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { DogPostDetail, useDogPostsStore } from '@/stores/dogPostsStore';
@@ -96,7 +97,7 @@ export default function PublicPostScreen() {
           </ThemedView>
 
           <ThemedView style={styles.infoBlock}>
-            <StatusBadge type={post.type as DogPostType} variant="solid" />
+            <StatusBadge meta={DOG_POST_TYPE_META[post.type as DogPostType]} variant="solid" />
             <ThemedText type="title">{post.zone_text}</ThemedText>
             <ThemedView style={styles.infoRow}>
               <Ionicons name="calendar-outline" size={18} color={theme.textSecondary} />
