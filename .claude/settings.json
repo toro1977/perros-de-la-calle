@@ -1,5 +1,37 @@
 {
   "enabledPlugins": {
     "expo@claude-plugins-official": true
+  },
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(xcrun simctl io *)",
+      "Bash(brew shellenv)",
+      "Bash(npx expo lint *)",
+      "Bash(npx vitest *)",
+      "Bash(npx eslint *)",
+      "Bash(git check-ignore *)",
+      "Bash(npm show *)",
+      "Bash(npx supabase migration list *)",
+      "Bash(xcrun simctl list *)",
+      "Bash(maestro hierarchy)",
+      "Bash(maestro --version)",
+      "mcp__claude_ai_Linear__list_issues",
+      "mcp__claude_ai_Supabase__list_projects",
+      "mcp__claude_ai_Supabase__list_organizations",
+      "mcp__claude_ai_Linear__list_projects",
+      "mcp__claude_ai_Supabase__get_logs",
+      "mcp__claude_ai_Linear__get_issue",
+      "mcp__claude_ai_Supabase__get_advisors",
+      "mcp__claude_ai_Supabase__list_tables",
+      "Bash(xcrun devicectl list *)",
+      "Bash(xcrun xctrace list *)",
+      "Bash(brew --version)",
+      "Bash(npx supabase projects list *)",
+      "mcp__claude_ai_Supabase__generate_typescript_types",
+      "mcp__claude_ai_Google_Drive__search_files",
+      "mcp__claude_ai_Linear__list_teams",
+      "mcp__claude_ai_Supabase__get_publishable_keys"
+    ]
   }
 }
