@@ -23,6 +23,7 @@ type AuthActions = {
   updateProfile: (updates: { fullName: string; phone: string }) => Promise<void>;
   updateAvatar: (avatarUrl: string) => Promise<void>;
   deleteAccount: () => Promise<void>;
+  dismissConfirmEmailPending: () => void;
 };
 
 // Creates the users (and shelters, if role=shelter) row the first time a
@@ -194,4 +195,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
       set({ isLoading: false });
     }
   },
+
+  dismissConfirmEmailPending: () => set({ confirmEmailPending: false }),
 }));

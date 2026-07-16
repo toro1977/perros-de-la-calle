@@ -30,6 +30,7 @@ export default function RegisterScreen() {
   const signUpWithEmail = useAuthStore(s => s.signUpWithEmail);
   const isLoading = useAuthStore(s => s.isLoading);
   const confirmEmailPending = useAuthStore(s => s.confirmEmailPending);
+  const dismissConfirmEmailPending = useAuthStore(s => s.dismissConfirmEmailPending);
   const scrollRef = useRef<ScrollView>(null);
   const fullNameRef = useRef<TextInput>(null);
   const emailRef = useRef<TextInput>(null);
@@ -58,6 +59,18 @@ export default function RegisterScreen() {
     return (
       <ThemedView style={styles.container}>
         <SafeAreaView style={styles.safeAreaCentered}>
+          <Pressable
+            onPress={() => {
+              dismissConfirmEmailPending();
+              router.back();
+            }}
+            style={styles.confirmBackButton}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Volver"
+          >
+            <Ionicons name="chevron-back" size={22} color={theme.text} />
+          </Pressable>
           <ThemedView style={[styles.confirmIcon, { backgroundColor: theme.accentSoft }]}>
             <Ionicons name="mail-outline" size={32} color={theme.accent} />
           </ThemedView>
@@ -67,9 +80,13 @@ export default function RegisterScreen() {
           <ThemedText type="default" themeColor="textSecondary" style={styles.centerText}>
             Te enviamos un link de confirmación a {email}. Abrilo y después volvé a iniciar sesión.
           </ThemedText>
-          <Link href="/(auth)/login" asChild>
-            <Button label="Ir a iniciar sesión" />
-          </Link>
+          <Button
+            label="Ir a iniciar sesión"
+            onPress={() => {
+              dismissConfirmEmailPending();
+              router.replace('/(auth)/login');
+            }}
+          />
         </SafeAreaView>
       </ThemedView>
     );
@@ -222,6 +239,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.four,
     gap: Spacing.three,
+  },
+  confirmBackButton: {
+    position: 'absolute',
+    top: Spacing.three,
+    left: Spacing.three,
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
   },
   backButton: {
     width: 36,
