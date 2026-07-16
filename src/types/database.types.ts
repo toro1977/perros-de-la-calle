@@ -679,6 +679,15 @@ export type Database = {
             }
             Returns: string
           }
+      create_adoption_dog: {
+        Args: {
+          p_breed?: string
+          p_description?: string
+          p_name: string
+          p_photo_url: string
+        }
+        Returns: string
+      }
       create_dog_post: {
         Args: {
           p_breed?: string
@@ -823,6 +832,21 @@ export type Database = {
         Returns: boolean
       }
       geomfromewkt: { Args: { "": string }; Returns: unknown }
+      get_adoption_dog: {
+        Args: { p_id: string }
+        Returns: {
+          breed: string
+          contact_phone: string
+          created_at: string
+          description: string
+          id: string
+          name: string
+          photo_url: string
+          shelter_id: string
+          shelter_name: string
+          status: string
+        }[]
+      }
       get_dog_post: {
         Args: { p_id: string }
         Returns: {
@@ -842,6 +866,20 @@ export type Database = {
         }[]
       }
       gettransactionid: { Args: never; Returns: unknown }
+      list_adoption_dogs: {
+        Args: never
+        Returns: {
+          breed: string
+          created_at: string
+          description: string
+          id: string
+          name: string
+          photo_url: string
+          shelter_id: string
+          shelter_name: string
+          status: string
+        }[]
+      }
       list_dog_posts: {
         Args: { p_lat?: number; p_lng?: number; p_type?: string }
         Returns: {
@@ -1483,6 +1521,10 @@ export type Database = {
         Returns: unknown
       }
       unlockrows: { Args: { "": string }; Returns: number }
+      update_adoption_dog_status: {
+        Args: { p_id: string; p_status: string }
+        Returns: undefined
+      }
       update_dog_post: {
         Args: {
           p_breed?: string
