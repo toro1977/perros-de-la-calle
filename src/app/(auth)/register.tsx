@@ -11,7 +11,7 @@ import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuthStore } from '@/stores/authStore';
 import { UserRole } from '@/types/database.types';
-import { normalizeArPhone } from '@/utils/phone';
+import { MAX_RAW_PHONE_LENGTH, normalizeArPhone } from '@/utils/phone';
 import { scrollFieldIntoView } from '@/utils/scroll-to-input';
 
 const ROLES: { value: UserRole; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
@@ -137,6 +137,7 @@ export default function RegisterScreen() {
                 prefix="+54 9"
                 placeholder="11 2345-6789"
                 keyboardType="phone-pad"
+                maxLength={MAX_RAW_PHONE_LENGTH}
                 value={phone}
                 onChangeText={setPhone}
                 onFocus={() => scrollFieldIntoView(scrollRef.current, phoneRef.current)}

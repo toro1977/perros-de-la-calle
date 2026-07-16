@@ -11,6 +11,13 @@
 
 const NATIONAL_NUMBER_LENGTH = 10;
 
+// Upper bound for the raw digits a user might type into the phone field
+// (country code excluded — that's a fixed prefix outside the input), so
+// the input's maxLength doesn't cut off someone still dialing the old way:
+// a leading trunk "0" plus an inserted "15" adds 3 digits on top of the
+// 10-digit national number, e.g. "0223 15 456789" (Mar del Plata).
+export const MAX_RAW_PHONE_LENGTH = NATIONAL_NUMBER_LENGTH + 3;
+
 export function normalizeArPhone(raw: string): string | null {
   let digits = raw.replace(/\D/g, '');
   if (!digits) return null;

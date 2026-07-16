@@ -23,7 +23,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { uploadAvatar } from '@/services/avatarUpload';
 import { pickAvatarPhoto } from '@/services/photoPicker';
 import { useAuthStore } from '@/stores/authStore';
-import { normalizeArPhone } from '@/utils/phone';
+import { MAX_RAW_PHONE_LENGTH, normalizeArPhone } from '@/utils/phone';
 import { scrollFieldIntoView } from '@/utils/scroll-to-input';
 
 export default function ProfileScreen() {
@@ -164,6 +164,7 @@ export default function ProfileScreen() {
               prefix="+54 9"
               placeholder="11 2345-6789"
               keyboardType="phone-pad"
+              maxLength={MAX_RAW_PHONE_LENGTH}
               value={phone}
               onChangeText={setPhone}
               onFocus={() => scrollFieldIntoView(scrollRef.current, phoneRef.current)}
