@@ -10,6 +10,7 @@ import {
   NativeSyntheticEvent,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   useWindowDimensions,
 } from 'react-native';
@@ -34,6 +35,17 @@ function buildWhatsAppUrl(e164Phone: string, dogName: string | null) {
     ? `Hola! Vi a ${dogName} en adopción en la app Perros de la calle.`
     : 'Hola! Vi un perro en adopción en la app Perros de la calle.';
   return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+}
+
+// Public landing (src/app/pa/[id].tsx), deployed via EAS Hosting — opens
+// for anyone, app installed or not. Update this if the site ever moves
+// to a custom domain.
+const PUBLIC_SITE_URL = 'https://perros-de-la-calle.expo.app';
+
+function buildShareMessage(dog: AdoptionDogDetail) {
+  const breedPart = dog.breed ? ` · ${dog.breed}` : '';
+  const link = `${PUBLIC_SITE_URL}/pa/${dog.id}`;
+  return `${dog.name || 'Un perro'} está en adopción en ${dog.shelter_name}${breedPart}. Mirá el aviso en Perros de la calle: ${link}`;
 }
 
 export default function AdoptionDogDetailScreen() {
@@ -62,6 +74,11 @@ export default function AdoptionDogDetailScreen() {
   useEffect(() => {
     if (id) getAdoptionDog(id).then(setDog);
   }, [id]);
+
+  async function handleShare() {
+    if (!dog) return;
+    await Share.share({ message: buildShareMessage(dog) });
+  }
 
   async function handleContact() {
     if (!dog) return;
@@ -137,17 +154,28 @@ export default function AdoptionDogDetailScreen() {
             >
               <Ionicons name="chevron-back" size={22} color="#fff" />
             </Pressable>
-            {isOwner && (
+            <ThemedView style={styles.photoOverlayActions}>
+              {isOwner && (
+                <Pressable
+                  style={[styles.backButton, { backgroundColor: 'rgba(0,0,0,0.45)' }]}
+                  onPress={() => router.push({ pathname: '/new-post', params: { id: dog.id, kind: 'adoption' } })}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Editar publicación"
+                >
+                  <Ionicons name="pencil-outline" size={20} color="#fff" />
+                </Pressable>
+              )}
               <Pressable
                 style={[styles.backButton, { backgroundColor: 'rgba(0,0,0,0.45)' }]}
-                onPress={() => router.push({ pathname: '/new-post', params: { id: dog.id, kind: 'adoption' } })}
+                onPress={handleShare}
                 hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel="Editar publicación"
+                accessibilityLabel="Compartir"
               >
-                <Ionicons name="pencil-outline" size={20} color="#fff" />
+                <Ionicons name="share-outline" size={20} color="#fff" />
               </Pressable>
-            )}
+            </ThemedView>
           </SafeAreaView>
           <ThemedView style={styles.photoFooter}>
             {dog.photo_urls.length > 1 && (
@@ -305,6 +333,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: Spacing.one,
+  },
+  photoOverlayActions: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+    backgroundColor: 'transparent',
   },
   photoFooter: {
     position: 'absolute',
