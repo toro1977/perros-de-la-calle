@@ -3,12 +3,13 @@ import { BlurView } from 'expo-blur';
 import { router, usePathname } from 'expo-router';
 import { GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 import { useEffect, useRef, useState } from 'react';
-import { LayoutChangeEvent, Pressable, StyleSheet } from 'react-native';
+import { LayoutChangeEvent, Platform, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { useScrollActivityStore } from '@/stores/scrollActivityStore';
 import { tapHaptic } from '@/utils/haptics';
 
@@ -19,21 +20,10 @@ import { tapHaptic } from '@/utils/haptics';
 // result can't change during the app's lifetime.
 const useLiquidGlass = isGlassEffectAPIAvailable();
 
-// Tinder-style bar: one continuous dark pill with all 5 destinations
-// inline (Publicar included — no separate floating button) and the
-// active tab getting its own rounded highlight instead of just a color
-// change. Always dark, independent of the app's light/dark theme —
-// that's the reference look, and it keeps icon/label contrast
-// consistent no matter what's scrolling behind the bar.
-const BAR_BORDER = 'rgba(255,255,255,0.08)';
-// Tinder's own bar reads as nearly solid black, not a translucent glass
-// pane — this tint is deliberately heavy (measured against a recording
-// of the real app) so the glass/blur underneath just adds subtle
-// texture instead of making the bar look see-through.
-const BAR_TINT = 'rgba(12,12,14,0.88)';
-const ACTIVE_BG = 'rgba(255,255,255,0.16)';
-const ACTIVE_FG = '#FFFFFF';
-const INACTIVE_FG = 'rgba(255,255,255,0.85)';
+// The bar itself goes back to the app's own light/dark surface — the
+// sliding glass pill is what reads as the highlight now, so a forced
+// dark bar isn't needed anymore.
+const ACTIVE_BG_FALLBACK = 'rgba(120,120,128,0.18)'; // Android / iOS < 26 pill fill
 
 // The sliding pill's base spring — elastic but contained, Tinder-ish.
 // Tune from here.
@@ -71,6 +61,7 @@ const TABS: Tab[] = [
 ];
 
 export function BottomTabBar() {
+  const theme = useTheme();
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const isScrolling = useScrollActivityStore(s => s.isScrolling);
@@ -82,7 +73,6 @@ export function BottomTabBar() {
   const [layouts, setLayouts] = useState<Partial<Record<string, TabLayout>>>({});
   const leftEdge = useSharedValue(0);
   const rightEdge = useSharedValue(0);
-  const pillOpacity = useSharedValue(0);
   const hasPositioned = useRef(false);
 
   useEffect(() => {
@@ -116,10 +106,12 @@ export function BottomTabBar() {
 
     if (!hasPositioned.current) {
       // First real position — snap instantly instead of springing in
-      // from {0,0}, so the pill never visibly travels on cold start.
+      // from {0,0}. Before this runs, left===right===0 so the pill is
+      // zero-width (invisible) rather than needing an opacity fade —
+      // opacity on/near a GlassView breaks its glass rendering, so
+      // width is the safe way to hide it pre-measurement.
       leftEdge.value = targetLeft;
       rightEdge.value = targetRight;
-      pillOpacity.value = withTiming(1, { duration: 120 });
       hasPositioned.current = true;
       return;
     }
@@ -128,12 +120,11 @@ export function BottomTabBar() {
     // Leading edge = the one in the direction of travel, reaches first.
     leftEdge.value = withSpring(targetLeft, movingRight ? TRAILING_SPRING : LEADING_SPRING);
     rightEdge.value = withSpring(targetRight, movingRight ? LEADING_SPRING : TRAILING_SPRING);
-  }, [pathname, layouts, leftEdge, rightEdge, pillOpacity]);
+  }, [pathname, layouts, leftEdge, rightEdge]);
 
   const pillStyle = useAnimatedStyle(() => ({
     left: leftEdge.value,
     width: Math.max(0, rightEdge.value - leftEdge.value),
-    opacity: pillOpacity.value,
   }));
 
   function goTab(tab: Tab) {
@@ -146,20 +137,33 @@ export function BottomTabBar() {
 
   return (
     <ThemedView style={[styles.wrap, { paddingBottom: insets.bottom + Spacing.two }]} pointerEvents="box-none">
-      <Animated.View style={[styles.bar, { borderColor: BAR_BORDER }, compactStyle]}>
+      <Animated.View style={[styles.bar, { borderColor: theme.border }, compactStyle]}>
         {useLiquidGlass ? (
           <GlassView glassEffectStyle="regular" isInteractive style={StyleSheet.absoluteFill} />
         ) : (
-          <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFill} />
+          <BlurView intensity={60} tint="default" style={StyleSheet.absoluteFill} />
         )}
-        <ThemedView style={[styles.barTint, { backgroundColor: BAR_TINT }]} />
+        {/* Blur/glass alone is too translucent over busy photos — this
+            tint keeps icon/text contrast readable while still letting
+            some of the blurred content show through. Not applied to
+            the pill (see below): opacity there would break its glass. */}
+        <ThemedView style={[styles.barTint, { backgroundColor: theme.surface, opacity: 0.72 }]} />
 
         {/* Rendered before the tab Pressables so it paints behind their
             icons/labels — no zIndex needed, plain paint order. */}
-        <Animated.View pointerEvents="none" style={[styles.pill, { backgroundColor: ACTIVE_BG }, pillStyle]} />
+        <Animated.View pointerEvents="none" style={[styles.pill, pillStyle]}>
+          {useLiquidGlass ? (
+            <GlassView glassEffectStyle="clear" tintColor={`${theme.accent}22`} style={StyleSheet.absoluteFill} />
+          ) : Platform.OS === 'ios' ? (
+            <BlurView intensity={40} style={StyleSheet.absoluteFill} />
+          ) : (
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: ACTIVE_BG_FALLBACK }]} />
+          )}
+        </Animated.View>
 
         {TABS.map(tab => {
           const isActive = pathname === tab.path;
+          const color = isActive ? theme.text : theme.textSecondary;
           return (
             <Pressable
               key={tab.path}
@@ -170,11 +174,11 @@ export function BottomTabBar() {
               accessibilityLabel={tab.path === '/notifications' ? 'Alertas — todavía no disponible' : tab.label}
             >
               <ThemedView style={styles.tabIconWrap}>
-                <Ionicons name={isActive ? tab.activeIcon : tab.icon} size={22} color={isActive ? ACTIVE_FG : INACTIVE_FG} />
+                <Ionicons name={isActive ? tab.activeIcon : tab.icon} size={22} color={color} />
                 {tab.path === '/notifications' && (
                   // "Alertas" has no backend yet — this dot says "not live",
                   // never a real unread count.
-                  <ThemedView style={[styles.soonDot, { backgroundColor: INACTIVE_FG, borderColor: '#000' }]} />
+                  <ThemedView style={[styles.soonDot, { backgroundColor: theme.textSecondary, borderColor: theme.surface }]} />
                 )}
               </ThemedView>
               <ThemedText
@@ -182,7 +186,7 @@ export function BottomTabBar() {
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.8}
-                style={{ color: isActive ? ACTIVE_FG : INACTIVE_FG, fontWeight: isActive ? '700' : '600' }}
+                style={{ color, fontWeight: isActive ? '700' : '600' }}
               >
                 {tab.label}
               </ThemedText>
@@ -230,6 +234,7 @@ const styles = StyleSheet.create({
     top: 8,
     bottom: 8,
     borderRadius: Radius.full,
+    overflow: 'hidden',
   },
   tabButton: {
     flex: 1,
