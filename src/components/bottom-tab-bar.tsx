@@ -9,11 +9,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
 import { useScrollActivityStore } from '@/stores/scrollActivityStore';
 import { tapHaptic } from '@/utils/haptics';
-
-const PUBLISH_SIZE = 56;
 
 // Real Liquid Glass (refraction, not just blur) only exists on iOS 26+,
 // and even some iOS 26 betas lack the native API — GlassView silently
@@ -22,27 +19,42 @@ const PUBLISH_SIZE = 56;
 // result can't change during the app's lifetime.
 const useLiquidGlass = isGlassEffectAPIAvailable();
 
-// Feed · Mis avisos · [Publicar] · Alertas · Perfil. "Mapa" isn't here
-// — it's a view-mode toggle on the feed itself, not a destination (see
-// the Lista/Mapa segmented control in src/app/(app)/index.tsx).
-// "Alertas" (src/app/(app)/notifications.tsx) has no backend yet, so
-// it carries a small "soon" dot instead of pretending to work — never
-// call it "Avisos", that word is already taken by posts (see
-// docs/rediseno-v3.md section A3/A4).
-//
-// Publicar is a round elevated button (theme.accent), absolutely
-// positioned as a sibling of the blurred/clipped bar rather than a
-// child of it — a child with a negative marginTop would get clipped
-// by the bar's own overflow:hidden (needed to clip the blur/tint to
-// its rounded corners).
+// Tinder-style bar: one continuous dark pill with all 5 destinations
+// inline (Publicar included — no separate floating button) and the
+// active tab getting its own rounded highlight instead of just a color
+// change. Always dark, independent of the app's light/dark theme —
+// that's the reference look, and it keeps icon/label contrast
+// consistent no matter what's scrolling behind the bar.
+const BAR_BORDER = 'rgba(255,255,255,0.08)';
+const BAR_TINT = 'rgba(15,15,17,0.55)';
+const ACTIVE_BG = 'rgba(255,255,255,0.16)';
+const ACTIVE_FG = '#FFFFFF';
+const INACTIVE_FG = 'rgba(255,255,255,0.62)';
+
+type Tab = {
+  path: '/' | '/my-posts' | '/new-post' | '/notifications' | '/profile';
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  activeIcon: keyof typeof Ionicons.glyphMap;
+};
+
+// "Mapa" isn't here — it's a view-mode toggle on the feed itself, not a
+// destination (see the Lista/Mapa segmented control in
+// src/app/(app)/index.tsx). "Alertas" (src/app/(app)/notifications.tsx)
+// has no backend yet, so it carries a small "soon" dot instead of
+// pretending to work — never call it "Avisos", that word is already
+// taken by posts (see docs/rediseno-v3.md section A3/A4).
+const TABS: Tab[] = [
+  { path: '/', label: 'Feed', icon: 'home-outline', activeIcon: 'home' },
+  { path: '/my-posts', label: 'Mis avisos', icon: 'albums-outline', activeIcon: 'albums' },
+  { path: '/new-post', label: 'Publicar', icon: 'add-circle-outline', activeIcon: 'add-circle' },
+  { path: '/notifications', label: 'Alertas', icon: 'notifications-outline', activeIcon: 'notifications' },
+  { path: '/profile', label: 'Perfil', icon: 'person-outline', activeIcon: 'person' },
+];
+
 export function BottomTabBar() {
-  const theme = useTheme();
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
-  const isFeedActive = pathname === '/';
-  const isMyPosts = pathname === '/my-posts';
-  const isNotifications = pathname === '/notifications';
-  const isProfile = pathname === '/profile';
   const isScrolling = useScrollActivityStore(s => s.isScrolling);
   const compact = useSharedValue(0);
 
@@ -57,119 +69,48 @@ export function BottomTabBar() {
     marginHorizontal: Spacing.two + compact.value * Spacing.four,
   }));
 
-  function goFeed() {
+  function goTab(tab: Tab) {
     tapHaptic();
-    router.replace('/');
-  }
-
-  function goMyPosts() {
-    tapHaptic();
-    router.replace('/my-posts');
-  }
-
-  function goNotifications() {
-    tapHaptic();
-    router.replace('/notifications');
-  }
-
-  function goProfile() {
-    tapHaptic();
-    router.replace('/profile');
-  }
-
-  function goPublish() {
-    tapHaptic();
-    router.push('/new-post');
+    // Publicar opens a new screen on top of the stack; the other four
+    // are peer destinations, so they replace instead of stacking up.
+    if (tab.path === '/new-post') router.push('/new-post');
+    else router.replace(tab.path);
   }
 
   return (
     <ThemedView style={[styles.wrap, { paddingBottom: insets.bottom + Spacing.two }]} pointerEvents="box-none">
-      <Animated.View style={[styles.outerBar, compactStyle]}>
-        <ThemedView style={[styles.innerBar, { borderColor: theme.border }]}>
-          {useLiquidGlass ? (
-            <GlassView glassEffectStyle="regular" isInteractive style={StyleSheet.absoluteFill} />
-          ) : (
-            <>
-              <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />
-              {/* Real Liquid Glass handles its own contrast — this tint only
-                  exists for the BlurView fallback (Android, iOS < 26), where
-                  the blur alone is too translucent over busy photos. */}
-              <ThemedView style={[styles.barTint, { backgroundColor: theme.surface }]} />
-            </>
-          )}
+      <Animated.View style={[styles.bar, { borderColor: BAR_BORDER }, compactStyle]}>
+        {useLiquidGlass ? (
+          <GlassView glassEffectStyle="regular" isInteractive style={StyleSheet.absoluteFill} />
+        ) : (
+          <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFill} />
+        )}
+        <ThemedView style={[styles.barTint, { backgroundColor: BAR_TINT }]} />
 
-          <ThemedView style={styles.sideGroup}>
+        {TABS.map(tab => {
+          const isActive = pathname === tab.path;
+          return (
             <Pressable
-              style={({ pressed }) => [styles.tabButton, pressed && { backgroundColor: theme.backgroundElement }]}
-              onPress={goFeed}
+              key={tab.path}
+              style={[styles.tabButton, isActive && { backgroundColor: ACTIVE_BG }]}
+              onPress={() => goTab(tab)}
               accessibilityRole="button"
-              accessibilityLabel="Feed"
-            >
-              <Ionicons name={isFeedActive ? 'home' : 'home-outline'} size={22} color={isFeedActive ? theme.text : theme.textSecondary} />
-              <ThemedText type="caption" style={{ color: isFeedActive ? theme.text : theme.textSecondary }}>
-                Feed
-              </ThemedText>
-            </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [styles.tabButton, pressed && { backgroundColor: theme.backgroundElement }]}
-              onPress={goMyPosts}
-              accessibilityRole="button"
-              accessibilityLabel="Mis avisos"
-            >
-              <Ionicons name={isMyPosts ? 'albums' : 'albums-outline'} size={22} color={isMyPosts ? theme.text : theme.textSecondary} />
-              <ThemedText type="caption" style={{ color: isMyPosts ? theme.text : theme.textSecondary }}>
-                Mis avisos
-              </ThemedText>
-            </Pressable>
-          </ThemedView>
-
-          <ThemedView style={styles.centerSpacer} />
-
-          <ThemedView style={styles.sideGroup}>
-            <Pressable
-              style={({ pressed }) => [styles.tabButton, pressed && { backgroundColor: theme.backgroundElement }]}
-              onPress={goNotifications}
-              accessibilityRole="button"
-              accessibilityLabel="Alertas — todavía no disponible"
+              accessibilityLabel={tab.path === '/notifications' ? 'Alertas — todavía no disponible' : tab.label}
             >
               <ThemedView style={styles.tabIconWrap}>
-                <Ionicons
-                  name={isNotifications ? 'notifications' : 'notifications-outline'}
-                  size={22}
-                  color={isNotifications ? theme.text : theme.textSecondary}
-                />
-                {/* "Alertas" has no backend yet — this dot says "not live",
-                    never a real unread count. */}
-                <ThemedView style={[styles.soonDot, { backgroundColor: theme.textSecondary, borderColor: theme.surface }]} />
+                <Ionicons name={isActive ? tab.activeIcon : tab.icon} size={22} color={isActive ? ACTIVE_FG : INACTIVE_FG} />
+                {tab.path === '/notifications' && (
+                  // "Alertas" has no backend yet — this dot says "not live",
+                  // never a real unread count.
+                  <ThemedView style={[styles.soonDot, { backgroundColor: INACTIVE_FG, borderColor: '#000' }]} />
+                )}
               </ThemedView>
-              <ThemedText type="caption" style={{ color: isNotifications ? theme.text : theme.textSecondary }}>
-                Alertas
+              <ThemedText type="caption" style={{ color: isActive ? ACTIVE_FG : INACTIVE_FG, fontWeight: isActive ? '700' : '600' }}>
+                {tab.label}
               </ThemedText>
             </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [styles.tabButton, pressed && { backgroundColor: theme.backgroundElement }]}
-              onPress={goProfile}
-              accessibilityRole="button"
-              accessibilityLabel="Perfil"
-            >
-              <Ionicons name={isProfile ? 'person' : 'person-outline'} size={22} color={isProfile ? theme.text : theme.textSecondary} />
-              <ThemedText type="caption" style={{ color: isProfile ? theme.text : theme.textSecondary }}>
-                Perfil
-              </ThemedText>
-            </Pressable>
-          </ThemedView>
-        </ThemedView>
-
-        <Pressable
-          style={({ pressed }) => [styles.publishButton, { backgroundColor: theme.accent }, pressed && styles.publishButtonPressed]}
-          onPress={goPublish}
-          accessibilityRole="button"
-          accessibilityLabel="Publicar aviso"
-        >
-          <Ionicons name="add" size={28} color={theme.onAccent} />
-        </Pressable>
+          );
+        })}
       </Animated.View>
     </ThemedView>
   );
@@ -185,20 +126,17 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: 'transparent',
   },
-  outerBar: {
-    backgroundColor: 'transparent',
-  },
-  innerBar: {
+  bar: {
     flexDirection: 'row',
     alignItems: 'center',
     height: TAB_BAR_HEIGHT,
     borderWidth: 1,
-    borderRadius: Radius.lg,
-    paddingHorizontal: Spacing.two,
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.one,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.2,
     shadowRadius: 12,
     elevation: 6,
   },
@@ -208,26 +146,15 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    opacity: 0.72,
-  },
-  sideGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    flex: 1,
-    backgroundColor: 'transparent',
-  },
-  centerSpacer: {
-    width: PUBLISH_SIZE,
-    backgroundColor: 'transparent',
   },
   tabButton: {
+    flex: 1,
     alignItems: 'center',
-    gap: 2,
-    minWidth: 56,
-    minHeight: 44,
     justifyContent: 'center',
-    borderRadius: Radius.md,
+    gap: 2,
+    minHeight: 48,
+    marginHorizontal: 2,
+    borderRadius: Radius.full,
   },
   tabIconWrap: {
     backgroundColor: 'transparent',
@@ -240,24 +167,5 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: Radius.full,
     borderWidth: 1.5,
-  },
-  publishButton: {
-    position: 'absolute',
-    top: -18,
-    left: '50%',
-    marginLeft: -PUBLISH_SIZE / 2,
-    width: PUBLISH_SIZE,
-    height: PUBLISH_SIZE,
-    borderRadius: Radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
-  },
-  publishButtonPressed: {
-    opacity: 0.85,
   },
 });
