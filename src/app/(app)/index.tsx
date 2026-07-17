@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { Link, useFocusEffect } from 'expo-router';
+import { Link, router, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FlatList, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -175,20 +175,22 @@ export default function PostsListScreen() {
         </ThemedView>
 
         {profile?.role === 'shelter' && (
-          <Link href={{ pathname: '/new-post', params: { type: 'adoption' } }} asChild>
-            <Pressable
-              onPress={tapHaptic}
-              style={({ pressed }) =>
-                StyleSheet.flatten([styles.banner, { backgroundColor: theme.accentSoft, borderColor: theme.accent, opacity: pressed ? 0.85 : 1 }])
-              }
-            >
-              <Ionicons name="home-outline" size={18} color={theme.accent} />
-              <ThemedText type="small" style={{ color: theme.accent, flex: 1 }}>
-                Cuenta de refugio — publicá un perro en adopción.
-              </ThemedText>
-              <Ionicons name="chevron-forward" size={16} color={theme.accent} />
-            </Pressable>
-          </Link>
+          <Pressable
+            onPress={() => {
+              tapHaptic();
+              router.push({ pathname: '/new-post', params: { type: 'adoption' } });
+            }}
+            style={({ pressed }) => [
+              styles.banner,
+              { backgroundColor: theme.accentSoft, borderColor: theme.accent, opacity: pressed ? 0.85 : 1 },
+            ]}
+          >
+            <Ionicons name="home-outline" size={18} color={theme.accent} />
+            <ThemedText type="small" style={{ color: theme.accent, flex: 1 }}>
+              Cuenta de refugio — publicá un perro en adopción.
+            </ThemedText>
+            <Ionicons name="chevron-forward" size={16} color={theme.accent} />
+          </Pressable>
         )}
 
         {isAdoptionMode || viewMode === 'list' ? (
