@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { router, usePathname } from 'expo-router';
+import { GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 import { useEffect } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -13,6 +14,13 @@ import { useScrollActivityStore } from '@/stores/scrollActivityStore';
 import { tapHaptic } from '@/utils/haptics';
 
 const PUBLISH_SIZE = 56;
+
+// Real Liquid Glass (refraction, not just blur) only exists on iOS 26+,
+// and even some iOS 26 betas lack the native API — GlassView silently
+// degrades to a plain View there with no visual effect at all, so this
+// gate is required, not optional. Checked once at module load: the
+// result can't change during the app's lifetime.
+const useLiquidGlass = isGlassEffectAPIAvailable();
 
 // Feed · Mis avisos · [Publicar] · Alertas · Perfil. "Mapa" isn't here
 // — it's a view-mode toggle on the feed itself, not a destination (see
@@ -78,8 +86,17 @@ export function BottomTabBar() {
     <ThemedView style={[styles.wrap, { paddingBottom: insets.bottom + Spacing.two }]} pointerEvents="box-none">
       <Animated.View style={[styles.outerBar, compactStyle]}>
         <ThemedView style={[styles.innerBar, { borderColor: theme.border }]}>
-          <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />
-          <ThemedView style={[styles.barTint, { backgroundColor: theme.surface }]} />
+          {useLiquidGlass ? (
+            <GlassView glassEffectStyle="regular" isInteractive style={StyleSheet.absoluteFill} />
+          ) : (
+            <>
+              <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />
+              {/* Real Liquid Glass handles its own contrast — this tint only
+                  exists for the BlurView fallback (Android, iOS < 26), where
+                  the blur alone is too translucent over busy photos. */}
+              <ThemedView style={[styles.barTint, { backgroundColor: theme.surface }]} />
+            </>
+          )}
 
           <ThemedView style={styles.sideGroup}>
             <Pressable
@@ -185,9 +202,6 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 6,
   },
-  // BlurView alone is too translucent over busy photos — this tint
-  // sits on top of the blur to keep icon/text contrast readable,
-  // still letting some of the blurred content show through.
   barTint: {
     position: 'absolute',
     top: 0,
