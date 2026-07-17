@@ -2,9 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { router, usePathname } from 'expo-router';
 import { GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
-import { useEffect } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { useEffect, useRef, useState } from 'react';
+import { LayoutChangeEvent, Pressable, StyleSheet } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -35,12 +35,26 @@ const ACTIVE_BG = 'rgba(255,255,255,0.16)';
 const ACTIVE_FG = '#FFFFFF';
 const INACTIVE_FG = 'rgba(255,255,255,0.85)';
 
+// The sliding pill's base spring — elastic but contained, Tinder-ish.
+// Tune from here.
+const PILL_SPRING = { damping: 16, stiffness: 180, mass: 1 };
+// Squash-and-stretch without scale hacks: the pill's left and right
+// edges are two independently-sprung values instead of one x+width
+// pair. The edge in the direction of travel (leading) gets a stiffer
+// spring and arrives first; the other (trailing) is softer and lags —
+// the gap between them IS the stretch, and it closes back to the
+// tab's real width once both edges settle.
+const LEADING_SPRING = { ...PILL_SPRING, stiffness: PILL_SPRING.stiffness + 40 };
+const TRAILING_SPRING = { ...PILL_SPRING, stiffness: PILL_SPRING.stiffness - 40 };
+
 type Tab = {
   path: '/' | '/my-posts' | '/new-post' | '/notifications' | '/profile';
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   activeIcon: keyof typeof Ionicons.glyphMap;
 };
+
+type TabLayout = { x: number; width: number };
 
 // "Mapa" isn't here — it's a view-mode toggle on the feed itself, not a
 // destination (see the Lista/Mapa segmented control in
@@ -62,6 +76,15 @@ export function BottomTabBar() {
   const isScrolling = useScrollActivityStore(s => s.isScrolling);
   const compact = useSharedValue(0);
 
+  // Real measured geometry per tab, relative to the row that contains
+  // both the tabs and the pill — no analytic "5 equal slots" math, so
+  // this stays correct even if a label's rendered width changes.
+  const [layouts, setLayouts] = useState<Partial<Record<string, TabLayout>>>({});
+  const leftEdge = useSharedValue(0);
+  const rightEdge = useSharedValue(0);
+  const pillOpacity = useSharedValue(0);
+  const hasPositioned = useRef(false);
+
   useEffect(() => {
     compact.value = withTiming(isScrolling ? 1 : 0, { duration: 220 });
   }, [isScrolling, compact]);
@@ -71,6 +94,46 @@ export function BottomTabBar() {
   // near-full-width when scrolling stops.
   const compactStyle = useAnimatedStyle(() => ({
     marginHorizontal: Spacing.two + compact.value * Spacing.four,
+  }));
+
+  function handleTabLayout(path: string, e: LayoutChangeEvent) {
+    const { x, width } = e.nativeEvent.layout;
+    setLayouts(prev => {
+      const existing = prev[path];
+      if (existing && existing.x === x && existing.width === width) return prev;
+      return { ...prev, [path]: { x, width } };
+    });
+  }
+
+  // Re-target the pill whenever the active route changes, or whenever
+  // a layout measurement arrives/shifts (first paint, or the bar
+  // resizing during the scroll "compact" animation).
+  useEffect(() => {
+    const active = layouts[pathname];
+    if (!active) return;
+    const targetLeft = active.x;
+    const targetRight = active.x + active.width;
+
+    if (!hasPositioned.current) {
+      // First real position — snap instantly instead of springing in
+      // from {0,0}, so the pill never visibly travels on cold start.
+      leftEdge.value = targetLeft;
+      rightEdge.value = targetRight;
+      pillOpacity.value = withTiming(1, { duration: 120 });
+      hasPositioned.current = true;
+      return;
+    }
+
+    const movingRight = targetLeft + targetRight > leftEdge.value + rightEdge.value;
+    // Leading edge = the one in the direction of travel, reaches first.
+    leftEdge.value = withSpring(targetLeft, movingRight ? TRAILING_SPRING : LEADING_SPRING);
+    rightEdge.value = withSpring(targetRight, movingRight ? LEADING_SPRING : TRAILING_SPRING);
+  }, [pathname, layouts, leftEdge, rightEdge, pillOpacity]);
+
+  const pillStyle = useAnimatedStyle(() => ({
+    left: leftEdge.value,
+    width: Math.max(0, rightEdge.value - leftEdge.value),
+    opacity: pillOpacity.value,
   }));
 
   function goTab(tab: Tab) {
@@ -91,12 +154,17 @@ export function BottomTabBar() {
         )}
         <ThemedView style={[styles.barTint, { backgroundColor: BAR_TINT }]} />
 
+        {/* Rendered before the tab Pressables so it paints behind their
+            icons/labels — no zIndex needed, plain paint order. */}
+        <Animated.View pointerEvents="none" style={[styles.pill, { backgroundColor: ACTIVE_BG }, pillStyle]} />
+
         {TABS.map(tab => {
           const isActive = pathname === tab.path;
           return (
             <Pressable
               key={tab.path}
-              style={[styles.tabButton, isActive && { backgroundColor: ACTIVE_BG }]}
+              style={styles.tabButton}
+              onLayout={e => handleTabLayout(tab.path, e)}
               onPress={() => goTab(tab)}
               accessibilityRole="button"
               accessibilityLabel={tab.path === '/notifications' ? 'Alertas — todavía no disponible' : tab.label}
@@ -156,6 +224,12 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+  },
+  pill: {
+    position: 'absolute',
+    top: 8,
+    bottom: 8,
+    borderRadius: Radius.full,
   },
   tabButton: {
     flex: 1,
