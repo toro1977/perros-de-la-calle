@@ -163,6 +163,18 @@ export default function MyPostsScreen() {
 
         <ThemedView style={styles.cardActions}>
           <Pressable
+            onPress={() => {
+              tapHaptic();
+              router.push({ pathname: '/new-post', params: { id: item.id, kind: 'adoption' } });
+            }}
+            hitSlop={8}
+            style={({ pressed }) => [styles.actionButton, { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.7 : 1 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Editar publicación"
+          >
+            <Ionicons name="pencil-outline" size={16} color={theme.text} />
+          </Pressable>
+          <Pressable
             onPress={() => handleChangeStatus(item)}
             hitSlop={8}
             style={({ pressed }) => [styles.actionButton, { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.7 : 1 }]}

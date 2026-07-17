@@ -26,6 +26,15 @@ type AdoptionDogsActions = {
     breed: string | null;
     description: string | null;
   }) => Promise<void>;
+  updateAdoptionDog: (params: {
+    id: string;
+    userId: string;
+    existingPhotoUrls: string[];
+    newPhotos: PickedPhoto[];
+    name: string;
+    breed: string | null;
+    description: string | null;
+  }) => Promise<void>;
   updateAdoptionDogStatus: (id: string, status: string) => Promise<void>;
   deleteAdoptionDog: (id: string) => Promise<void>;
 };
@@ -87,6 +96,30 @@ export const useAdoptionDogsStore = create<AdoptionDogsState & AdoptionDogsActio
       });
       if (error) throw error;
       await get().fetchAdoptionDogs();
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  updateAdoptionDog: async ({ id, userId, existingPhotoUrls, newPhotos, name, breed, description }) => {
+    set({ isLoading: true });
+    try {
+      const uploadedUrls =
+        newPhotos.length > 0
+          ? await uploadDogPhotos(
+              userId,
+              newPhotos.map(p => ({ uri: p.uri, mimeType: p.mimeType }))
+            )
+          : [];
+      const photoUrls = [...existingPhotoUrls, ...uploadedUrls];
+      const { error } = await supabase
+        .from('adoption_dogs')
+        .update({ name, breed, description, photo_urls: photoUrls })
+        .eq('id', id);
+      if (error) throw error;
+      set(state => ({
+        myDogs: state.myDogs.map(d => (d.id === id ? { ...d, name, breed, description, photo_urls: photoUrls } : d)),
+      }));
     } finally {
       set({ isLoading: false });
     }

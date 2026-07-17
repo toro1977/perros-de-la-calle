@@ -140,12 +140,12 @@ export default function AdoptionDogDetailScreen() {
             {isOwner && (
               <Pressable
                 style={[styles.backButton, { backgroundColor: 'rgba(0,0,0,0.45)' }]}
-                onPress={() => router.push('/my-posts')}
+                onPress={() => router.push({ pathname: '/new-post', params: { id: dog.id, kind: 'adoption' } })}
                 hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel="Gestionar en Mis avisos"
+                accessibilityLabel="Editar publicación"
               >
-                <Ionicons name="settings-outline" size={20} color="#fff" />
+                <Ionicons name="pencil-outline" size={20} color="#fff" />
               </Pressable>
             )}
           </SafeAreaView>

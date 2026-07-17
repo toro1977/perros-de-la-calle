@@ -48,21 +48,24 @@ function photoUri(slot: PhotoSlot): string {
 
 export default function NewPostScreen() {
   const theme = useTheme();
-  const { id, type: typeParam } = useLocalSearchParams<{ id?: string; type?: string }>();
+  const { id, type: typeParam, kind } = useLocalSearchParams<{ id?: string; type?: string; kind?: string }>();
   const isEditMode = !!id;
+  const isAdoptionEdit = isEditMode && kind === 'adoption';
   const profile = useAuthStore(s => s.profile);
   const createPost = useDogPostsStore(s => s.createPost);
   const updatePost = useDogPostsStore(s => s.updatePost);
   const getPost = useDogPostsStore(s => s.getPost);
   const isLoadingPost = useDogPostsStore(s => s.isLoading);
   const createAdoptionDog = useAdoptionDogsStore(s => s.createAdoptionDog);
+  const updateAdoptionDog = useAdoptionDogsStore(s => s.updateAdoptionDog);
+  const getAdoptionDog = useAdoptionDogsStore(s => s.getAdoptionDog);
   const isLoadingAdoption = useAdoptionDogsStore(s => s.isLoading);
 
-  // Adoption alta only, no edit mode yet — editing/status/borrado de
-  // perros en adopción vive en "Mis avisos", no acá.
   const typeOptions: FormType[] = profile?.role === 'shelter' ? ['lost', 'found', 'stray', 'adoption'] : ['lost', 'found', 'stray'];
 
-  const [type, setType] = useState<FormType>(typeParam === 'adoption' && profile?.role === 'shelter' ? 'adoption' : 'lost');
+  const [type, setType] = useState<FormType>(
+    isAdoptionEdit || (typeParam === 'adoption' && profile?.role === 'shelter') ? 'adoption' : 'lost'
+  );
   const [photos, setPhotos] = useState<PhotoSlot[]>([]);
   const [name, setName] = useState('');
   const [breed, setBreed] = useState('');
@@ -80,8 +83,18 @@ export default function NewPostScreen() {
   const isLoading = isAdoption ? isLoadingAdoption : isLoadingPost;
 
   useEffect(() => {
-    // Editing: prefill from the existing post instead of the GPS.
+    // Editing: prefill from the existing post/adoption dog instead of the GPS.
     if (isEditMode && id) {
+      if (isAdoptionEdit) {
+        getAdoptionDog(id).then(existing => {
+          if (!existing) return;
+          setPhotos(existing.photo_urls.map(url => ({ kind: 'existing', url })));
+          setName(existing.name ?? '');
+          setBreed(existing.breed ?? '');
+          setDescription(existing.description ?? '');
+        });
+        return;
+      }
       getPost(id).then(existing => {
         if (!existing) return;
         setType(existing.type as DogPostType);
@@ -96,7 +109,7 @@ export default function NewPostScreen() {
       .then(setLocation)
       .catch(() => {})
       .finally(() => setIsLocating(false));
-  }, [isEditMode, id]);
+  }, [isEditMode, id, isAdoptionEdit]);
 
   async function handleAddPhotos() {
     const remaining = MAX_PHOTOS - photos.length;
@@ -130,13 +143,25 @@ export default function NewPostScreen() {
 
     try {
       if (type === 'adoption') {
-        await createAdoptionDog({
-          photos: photos.filter(p => p.kind === 'new').map(p => p.photo),
-          userId: profile.id,
-          name: name.trim(),
-          breed: breed.trim() || null,
-          description: description.trim() || null,
-        });
+        if (isAdoptionEdit && id) {
+          await updateAdoptionDog({
+            id,
+            userId: profile.id,
+            existingPhotoUrls: photos.filter(p => p.kind === 'existing').map(p => p.url),
+            newPhotos: photos.filter(p => p.kind === 'new').map(p => p.photo),
+            name: name.trim(),
+            breed: breed.trim() || null,
+            description: description.trim() || null,
+          });
+        } else {
+          await createAdoptionDog({
+            photos: photos.filter(p => p.kind === 'new').map(p => p.photo),
+            userId: profile.id,
+            name: name.trim(),
+            breed: breed.trim() || null,
+            description: description.trim() || null,
+          });
+        }
       } else if (!location) {
         return; // unreachable — validated above when type !== 'adoption'
       } else if (isEditMode && id) {
@@ -190,7 +215,13 @@ export default function NewPostScreen() {
             <Ionicons name="chevron-back" size={22} color={theme.text} />
           </Pressable>
           <ThemedText type="subtitle">
-            {isEditMode ? 'Editar aviso' : isAdoption ? 'Publicar en adopción' : 'Publicar aviso'}
+            {isAdoptionEdit
+              ? 'Editar perro en adopción'
+              : isEditMode
+                ? 'Editar aviso'
+                : isAdoption
+                  ? 'Publicar en adopción'
+                  : 'Publicar aviso'}
           </ThemedText>
           <ThemedView style={styles.backButton} />
         </ThemedView>
@@ -202,39 +233,43 @@ export default function NewPostScreen() {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            <ThemedText type="caption" themeColor="textSecondary" style={styles.sectionLabel}>
-              Tipo de aviso
-            </ThemedText>
-            <ThemedView style={styles.typeRow}>
-              {typeOptions.map(value => {
-                const meta = getTypeMeta(value);
-                const selected = type === value;
-                const toneColor = theme[meta.tone];
-                const toneSoft = theme[`${meta.tone}Soft` as const];
-                return (
-                  <Pressable
-                    key={value}
-                    style={[
-                      styles.typeOption,
-                      typeOptions.length > 3 && styles.typeOptionHalf,
-                      {
-                        backgroundColor: selected ? toneSoft : theme.backgroundElement,
-                        borderColor: selected ? toneColor : theme.border,
-                      },
-                    ]}
-                    onPress={() => setType(value)}
-                  >
-                    <Ionicons name={meta.icon} size={20} color={selected ? toneColor : theme.textSecondary} />
-                    <ThemedText type="small" style={{ color: selected ? toneColor : theme.text, fontWeight: '600' }}>
-                      {meta.label}
-                    </ThemedText>
-                  </Pressable>
-                );
-              })}
-            </ThemedView>
-            <ThemedText type="caption" themeColor="textSecondary" style={styles.typeHint}>
-              {getTypeMeta(type).hint}
-            </ThemedText>
+            {!isAdoptionEdit && (
+              <>
+                <ThemedText type="caption" themeColor="textSecondary" style={styles.sectionLabel}>
+                  Tipo de aviso
+                </ThemedText>
+                <ThemedView style={styles.typeRow}>
+                  {typeOptions.map(value => {
+                    const meta = getTypeMeta(value);
+                    const selected = type === value;
+                    const toneColor = theme[meta.tone];
+                    const toneSoft = theme[`${meta.tone}Soft` as const];
+                    return (
+                      <Pressable
+                        key={value}
+                        style={[
+                          styles.typeOption,
+                          typeOptions.length > 3 && styles.typeOptionHalf,
+                          {
+                            backgroundColor: selected ? toneSoft : theme.backgroundElement,
+                            borderColor: selected ? toneColor : theme.border,
+                          },
+                        ]}
+                        onPress={() => setType(value)}
+                      >
+                        <Ionicons name={meta.icon} size={20} color={selected ? toneColor : theme.textSecondary} />
+                        <ThemedText type="small" style={{ color: selected ? toneColor : theme.text, fontWeight: '600' }}>
+                          {meta.label}
+                        </ThemedText>
+                      </Pressable>
+                    );
+                  })}
+                </ThemedView>
+                <ThemedText type="caption" themeColor="textSecondary" style={styles.typeHint}>
+                  {getTypeMeta(type).hint}
+                </ThemedText>
+              </>
+            )}
 
             {isAdoption && (
               <TextField
