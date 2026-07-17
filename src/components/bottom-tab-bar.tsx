@@ -109,7 +109,13 @@ export function BottomTabBar() {
                   <ThemedView style={[styles.soonDot, { backgroundColor: INACTIVE_FG, borderColor: '#000' }]} />
                 )}
               </ThemedView>
-              <ThemedText type="caption" style={{ color: isActive ? ACTIVE_FG : INACTIVE_FG, fontWeight: isActive ? '700' : '600' }}>
+              <ThemedText
+                type="caption"
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
+                style={{ color: isActive ? ACTIVE_FG : INACTIVE_FG, fontWeight: isActive ? '700' : '600' }}
+              >
                 {tab.label}
               </ThemedText>
             </Pressable>
