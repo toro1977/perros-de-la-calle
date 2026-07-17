@@ -26,10 +26,14 @@ const useLiquidGlass = isGlassEffectAPIAvailable();
 // that's the reference look, and it keeps icon/label contrast
 // consistent no matter what's scrolling behind the bar.
 const BAR_BORDER = 'rgba(255,255,255,0.08)';
-const BAR_TINT = 'rgba(15,15,17,0.55)';
+// Tinder's own bar reads as nearly solid black, not a translucent glass
+// pane — this tint is deliberately heavy (measured against a recording
+// of the real app) so the glass/blur underneath just adds subtle
+// texture instead of making the bar look see-through.
+const BAR_TINT = 'rgba(12,12,14,0.88)';
 const ACTIVE_BG = 'rgba(255,255,255,0.16)';
 const ACTIVE_FG = '#FFFFFF';
-const INACTIVE_FG = 'rgba(255,255,255,0.62)';
+const INACTIVE_FG = 'rgba(255,255,255,0.85)';
 
 type Tab = {
   path: '/' | '/my-posts' | '/new-post' | '/notifications' | '/profile';
