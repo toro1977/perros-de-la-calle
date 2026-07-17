@@ -3,11 +3,11 @@ import { Stack } from 'expo-router';
 export default function AppLayout() {
   return (
     <Stack>
-      <Stack.Screen name="index" options={{ title: 'Perros de la calle', headerShown: false }} />
-      <Stack.Screen name="profile" options={{ title: 'Perfil', headerShown: false }} />
-      <Stack.Screen name="notifications" options={{ title: 'Alertas', headerShown: false }} />
-      <Stack.Screen name="my-posts" options={{ title: 'Mis avisos', headerShown: false }} />
-      <Stack.Screen name="new-post" options={{ title: 'Publicar aviso', headerShown: false }} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      {/* animation: 'none' — reached from the tab bar's "Publicar" item,
+          which must feel like switching tabs (instant, bar stays put),
+          not like pushing a new screen. */}
+      <Stack.Screen name="new-post" options={{ title: 'Publicar aviso', headerShown: false, animation: 'none' }} />
       <Stack.Screen name="post/[id]" options={{ title: 'Detalle del aviso', headerShown: false }} />
       <Stack.Screen name="adoption/[id]" options={{ title: 'Perro en adopción', headerShown: false }} />
     </Stack>

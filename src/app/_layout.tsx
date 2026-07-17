@@ -46,7 +46,7 @@ function NavigationGuard() {
     if (!session && !inAuthGroup && !inPublicGroup) {
       router.replace('/(auth)/login');
     } else if (session && inAuthGroup) {
-      router.replace('/(app)');
+      router.replace('/');
     }
   }, [session, segments]);
 

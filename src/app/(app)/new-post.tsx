@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BottomTabBar, TAB_BAR_HEIGHT } from '@/components/bottom-tab-bar';
 import { BreedAutocomplete } from '@/components/breed-autocomplete';
 import { Button } from '@/components/button';
 import { LocationPickerModal } from '@/components/location-picker-modal';
@@ -422,6 +423,10 @@ export default function NewPostScreen() {
         </KeyboardAvoidingView>
       </SafeAreaView>
 
+      {/* Reached from the tab bar's "Publicar" item — the bar has to stay
+          visible here too, not just on the other 4 tab screens. */}
+      <BottomTabBar />
+
       <LocationPickerModal
         visible={showLocationPicker}
         initialLocation={location}
@@ -472,7 +477,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.three,
-    paddingBottom: Spacing.three,
+    // Clears the floating tab bar, which sits on top of this screen too
+    // — safeArea's own bottom inset already covers the home indicator.
+    paddingBottom: Spacing.three + TAB_BAR_HEIGHT + Spacing.two,
   },
   sectionLabel: {
     textTransform: 'uppercase',
