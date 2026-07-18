@@ -10,7 +10,6 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useScrollActivityStore } from '@/stores/scrollActivityStore';
 import { tapHaptic } from '@/utils/haptics';
 
 const PUBLISH_SIZE = 56;
@@ -67,19 +66,6 @@ export function BottomTabBar() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
-  const isScrolling = useScrollActivityStore(s => s.isScrolling);
-  const compact = useSharedValue(0);
-
-  useEffect(() => {
-    compact.value = withTiming(isScrolling ? 1 : 0, { duration: 220 });
-  }, [isScrolling, compact]);
-
-  // While scrolling, the bar pulls in from the edges a bit — the same
-  // "compact" behaviour iOS 26's own tab bars do — then settles back to
-  // near-full-width when scrolling stops.
-  const compactStyle = useAnimatedStyle(() => ({
-    marginHorizontal: Spacing.two + compact.value * Spacing.four,
-  }));
 
   function goTab(tab: Tab) {
     tapHaptic();
@@ -93,7 +79,7 @@ export function BottomTabBar() {
 
   function renderTab(tab: Tab) {
     const isActive = pathname === tab.path;
-    const color = isActive ? theme.text : theme.textSecondary;
+    const color = isActive ? theme.accent : theme.textSecondary;
     return (
       <Pressable
         key={tab.path}
@@ -119,7 +105,7 @@ export function BottomTabBar() {
 
   return (
     <ThemedView style={[styles.wrap, { paddingBottom: insets.bottom + Spacing.two }]} pointerEvents="box-none">
-      <Animated.View style={[styles.outerBar, compactStyle]}>
+      <ThemedView style={styles.outerBar}>
         <ThemedView style={[styles.innerBar, { borderColor: theme.border }]}>
           {useLiquidGlass ? (
             <GlassView glassEffectStyle="regular" isInteractive style={StyleSheet.absoluteFill} />
@@ -151,7 +137,7 @@ export function BottomTabBar() {
         >
           <Ionicons name="add" size={28} color={theme.onAccent} />
         </Pressable>
-      </Animated.View>
+      </ThemedView>
     </ThemedView>
   );
 }
@@ -167,6 +153,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   outerBar: {
+    marginHorizontal: Spacing.two,
     backgroundColor: 'transparent',
   },
   innerBar: {

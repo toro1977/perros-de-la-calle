@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Link, router, useFocusEffect } from 'expo-router';
@@ -20,7 +20,6 @@ import { AdoptionDogListItem, useAdoptionDogsStore } from '@/stores/adoptionDogs
 import { useAuthStore } from '@/stores/authStore';
 import { DogPostListItem, useDogPostsStore } from '@/stores/dogPostsStore';
 import { useFeedViewStore } from '@/stores/feedViewStore';
-import { useScrollActivityStore } from '@/stores/scrollActivityStore';
 import { DogPostType } from '@/types/database.types';
 import { formatDistance } from '@/utils/format-distance';
 import { tapHaptic } from '@/utils/haptics';
@@ -56,28 +55,10 @@ export default function PostsListScreen() {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const viewMode = useFeedViewStore(s => s.viewMode);
   const setViewMode = useFeedViewStore(s => s.setViewMode);
-  const setScrolling = useScrollActivityStore(s => s.setScrolling);
-  const scrollIdleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const isAdoptionMode = filter === 'adoption';
   const listData = isAdoptionMode ? adoptionDogs : posts;
   const isLoading = isAdoptionMode ? isLoadingAdoption : isLoadingPosts;
   const fetchError = isAdoptionMode ? adoptionError : postsError;
-
-  useEffect(() => {
-    return () => {
-      if (scrollIdleTimer.current) clearTimeout(scrollIdleTimer.current);
-      setScrolling(false);
-    };
-  }, [setScrolling]);
-
-  // Drives the tab bar's scroll-linked shrink — treated as "scrolling"
-  // until 150ms pass without a new scroll event.
-  function handleScroll() {
-    setScrolling(true);
-    if (scrollIdleTimer.current) clearTimeout(scrollIdleTimer.current);
-    scrollIdleTimer.current = setTimeout(() => setScrolling(false), 150);
-  }
 
   useEffect(() => {
     getCurrentLocation()
@@ -219,8 +200,6 @@ export default function PostsListScreen() {
                 renderItem={renderItem}
                 onRefresh={reload}
                 refreshing={isLoading}
-                onScroll={handleScroll}
-                scrollEventThrottle={16}
                 contentContainerStyle={[styles.listContent, { paddingBottom: fadeHeight }]}
                 ListEmptyComponent={
                   <ThemedView style={styles.empty}>
