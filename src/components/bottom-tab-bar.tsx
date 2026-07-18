@@ -36,7 +36,7 @@ type Tab = {
 // taken by posts (see docs/rediseno-v3.md section A3/A4).
 const LEFT_TABS: Tab[] = [
   { path: '/', label: 'Feed', icon: 'home-outline', activeIcon: 'home' },
-  { path: '/my-posts', label: 'Mis avisos', icon: 'albums-outline', activeIcon: 'albums' },
+  { path: '/my-posts', label: 'Mis avisos', icon: 'megaphone-outline', activeIcon: 'megaphone' },
 ];
 const RIGHT_TABS: Tab[] = [
   { path: '/notifications', label: 'Alertas', icon: 'notifications-outline', activeIcon: 'notifications' },
@@ -57,7 +57,7 @@ function TabIcon({ name, isActive, color }: { name: keyof typeof Ionicons.glyphM
 
   return (
     <Animated.View style={style}>
-      <Ionicons name={name} size={22} color={color} />
+      <Ionicons name={name} size={26} color={color} />
     </Animated.View>
   );
 }
@@ -83,7 +83,7 @@ export function BottomTabBar() {
     return (
       <Pressable
         key={tab.path}
-        style={({ pressed }) => [styles.tabButton, pressed && { backgroundColor: theme.backgroundElement }]}
+        style={styles.tabButton}
         onPress={() => goTab(tab)}
         accessibilityRole="button"
         accessibilityLabel={tab.path === '/notifications' ? 'Alertas — todavía no disponible' : tab.label}
@@ -91,9 +91,9 @@ export function BottomTabBar() {
         <ThemedView style={styles.tabIconWrap}>
           <TabIcon name={isActive ? tab.activeIcon : tab.icon} isActive={isActive} color={color} />
           {tab.path === '/notifications' && (
-            // "Alertas" has no backend yet — this dot says "not live",
-            // never a real unread count.
-            <ThemedView style={[styles.soonDot, { backgroundColor: theme.textSecondary, borderColor: theme.surface }]} />
+            // Real novedades badge — logic/data comes later, this is the
+            // dot's final look (accent color, not the old gray "soon" one).
+            <ThemedView style={[styles.soonDot, { backgroundColor: theme.accent, borderColor: theme.surface }]} />
           )}
         </ThemedView>
         <ThemedText type="caption" style={{ color, fontWeight: isActive ? '700' : '600' }}>
@@ -104,19 +104,25 @@ export function BottomTabBar() {
   }
 
   return (
-    <ThemedView style={[styles.wrap, { paddingBottom: insets.bottom + Spacing.two }]} pointerEvents="box-none">
-      <ThemedView style={styles.outerBar}>
-        <ThemedView style={[styles.innerBar, { borderColor: theme.border }]}>
-          {useLiquidGlass ? (
-            <GlassView glassEffectStyle="regular" isInteractive style={StyleSheet.absoluteFill} />
-          ) : (
-            <BlurView intensity={60} tint="default" style={StyleSheet.absoluteFill} />
-          )}
-          {/* Blur/glass alone is too translucent over busy photos — this
-              tint keeps icon/text contrast readable while still letting
-              some of the blurred content show through. */}
-          <ThemedView style={[styles.barTint, { backgroundColor: theme.surface, opacity: 0.72 }]} />
+    // Blur/glass covers the whole wrap (not just innerBar) so the entire
+    // bottom strip — including the safe-area sliver below the icons —
+    // reads as one continuous frosted surface, with no gap where
+    // scrolled content could show through un-blurred.
+    <ThemedView style={[styles.wrap, { paddingBottom: insets.bottom }]}>
+      {useLiquidGlass ? (
+        <GlassView glassEffectStyle="clear" style={StyleSheet.absoluteFill} />
+      ) : (
+        // tint="light", not "default" — "default" follows the OS
+        // appearance and reads as a flat gray slab when the phone is in
+        // dark mode, even though the app itself is forced light for now.
+        <BlurView intensity={50} tint="light" style={StyleSheet.absoluteFill} />
+      )}
+      {/* Mostly tint, blur only shows through faintly. A sibling of the
+          glass view, not a parent, so it doesn't break the glass effect. */}
+      <ThemedView style={[styles.barTint, { backgroundColor: theme.surface, opacity: 0.8 }]} />
 
+      <ThemedView style={styles.outerBar}>
+        <ThemedView style={[styles.innerBar, { borderTopColor: theme.border }]}>
           <ThemedView style={styles.sideGroup}>{LEFT_TABS.map(renderTab)}</ThemedView>
 
           <ThemedView style={styles.centerSpacer} />
@@ -124,11 +130,10 @@ export function BottomTabBar() {
           <ThemedView style={styles.sideGroup}>{RIGHT_TABS.map(renderTab)}</ThemedView>
         </ThemedView>
 
-        {/* Publicar is a round elevated button, absolutely positioned as
-            a sibling of the blurred/clipped bar rather than a child of
-            it — a child with a negative marginTop would get clipped by
-            the bar's own overflow:hidden (needed to clip the blur/tint
-            to its rounded corners). */}
+        {/* Publicar stays a round elevated button, absolutely positioned
+            as a sibling of innerBar — kept elevated above the flush bar
+            per explicit request, even though the bar itself no longer
+            floats. */}
         <Pressable
           style={({ pressed }) => [styles.publishButton, { backgroundColor: theme.accent }, pressed && styles.publishButtonPressed]}
           onPress={goPublish}
@@ -142,7 +147,10 @@ export function BottomTabBar() {
   );
 }
 
-export const TAB_BAR_HEIGHT = 64;
+// Intrinsic now (icon + label + vertical padding), not a fixed height —
+// this is an approximation other screens use to reserve bottom padding
+// so their content doesn't sit under the bar.
+export const TAB_BAR_HEIGHT = 54;
 
 const styles = StyleSheet.create({
   wrap: {
@@ -152,30 +160,24 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: 'transparent',
   },
-  outerBar: {
-    marginHorizontal: Spacing.two,
-    backgroundColor: 'transparent',
-  },
-  innerBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: TAB_BAR_HEIGHT,
-    borderWidth: 1,
-    borderRadius: Radius.lg,
-    paddingHorizontal: Spacing.two,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 6,
-  },
   barTint: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
+  },
+  outerBar: {
+    backgroundColor: 'transparent',
+  },
+  innerBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: Spacing.two,
+    paddingTop: 10,
+    paddingBottom: 0,
   },
   sideGroup: {
     flexDirection: 'row',
