@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Link, router, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { FlatList, Pressable, StyleSheet } from 'react-native';
+import { FlatList, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabBar, TAB_BAR_HEIGHT } from '@/components/bottom-tab-bar';
 import { Button } from '@/components/button';
@@ -25,18 +25,25 @@ import { formatDistance } from '@/utils/format-distance';
 import { tapHaptic } from '@/utils/haptics';
 import { formatRelativeTime } from '@/utils/relative-time';
 
-type FeedFilter = DogPostType | 'adoption';
+type FeedMode = 'rescue' | 'adoption';
 
-// No explicit "Todos" chip — tapping the active filter again clears it
-// back to "all", the same pattern Instagram/Mercado Libre use. Four chips
-// don't fit in one row without shrinking text, so they lay out 2x2
-// instead (see styles.filterChip's flexBasis).
-const FILTERS: { label: string; value: FeedFilter }[] = [
+// "Todos" is the only way back to the unfiltered state — tapping an
+// already-active chip is a no-op, unlike the old toggle-off behavior.
+const STATUS_FILTERS: { label: string; value: DogPostType | undefined }[] = [
+  { label: 'Todos', value: undefined },
   { label: 'Perdidos', value: 'lost' },
   { label: 'Encontrados', value: 'found' },
   { label: 'Callejeros', value: 'stray' },
-  { label: 'Adopción', value: 'adoption' },
 ];
+
+// zone_text is "Localidad, Partido, Provincia" (see reverse-geocode Edge
+// Function) — a card title needs just the first, most specific segment,
+// or it either overflows or repeats "Buenos Aires" on every single card.
+function localityOnly(zoneText: string) {
+  return zoneText.split(',')[0].trim();
+}
+
+const ADOPTION_BADGE_META = { label: 'En adopción', icon: 'home' as const, tone: 'success' as const };
 
 export default function PostsListScreen() {
   const theme = useTheme();
@@ -51,11 +58,12 @@ export default function PostsListScreen() {
   const fetchAdoptionDogs = useAdoptionDogsStore(s => s.fetchAdoptionDogs);
   const isLoadingAdoption = useAdoptionDogsStore(s => s.isLoading);
   const adoptionError = useAdoptionDogsStore(s => s.error);
-  const [filter, setFilter] = useState<FeedFilter | undefined>(undefined);
+  const [mode, setMode] = useState<FeedMode>('rescue');
+  const [statusFilter, setStatusFilter] = useState<DogPostType | undefined>(undefined);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const viewMode = useFeedViewStore(s => s.viewMode);
   const setViewMode = useFeedViewStore(s => s.setViewMode);
-  const isAdoptionMode = filter === 'adoption';
+  const isAdoptionMode = mode === 'adoption';
   const listData = isAdoptionMode ? adoptionDogs : posts;
   const isLoading = isAdoptionMode ? isLoadingAdoption : isLoadingPosts;
   const fetchError = isAdoptionMode ? adoptionError : postsError;
@@ -69,12 +77,12 @@ export default function PostsListScreen() {
   }, []);
 
   const reload = useCallback(() => {
-    if (filter === 'adoption') {
+    if (mode === 'adoption') {
       fetchAdoptionDogs();
     } else {
-      fetchPosts({ lat: coords?.lat, lng: coords?.lng, type: filter });
+      fetchPosts({ lat: coords?.lat, lng: coords?.lng, type: statusFilter });
     }
-  }, [coords, filter, fetchAdoptionDogs, fetchPosts]);
+  }, [coords, mode, statusFilter, fetchAdoptionDogs, fetchPosts]);
 
   useFocusEffect(reload);
 
@@ -91,71 +99,100 @@ export default function PostsListScreen() {
               {profile?.full_name ? `Hola, ${profile.full_name.split(' ')[0]}` : 'Hola!'}
             </ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
-              Avisos cerca tuyo
+              {isAdoptionMode ? 'Perros en adopción cerca tuyo' : 'Avisos cerca tuyo'}
             </ThemedText>
           </ThemedView>
         </ThemedView>
 
-        {!isAdoptionMode && (
-          <ThemedView style={[styles.viewToggle, { backgroundColor: theme.backgroundElement }]}>
+        {/* One row for both controls — mode is the primary axis (what you
+            see), view is secondary (how you see it) and only applies to
+            Rescate, so it collapses to a single icon button instead of
+            competing with the segmented control for attention. */}
+        <ThemedView style={styles.controlsRow}>
+          <ThemedView style={[styles.segmented, { backgroundColor: theme.backgroundElement }]}>
             <Pressable
-              style={[styles.viewToggleOption, viewMode === 'list' && { backgroundColor: theme.surface }]}
+              style={[styles.segmentedOption, mode === 'rescue' && { backgroundColor: theme.surface }]}
               onPress={() => {
                 tapHaptic();
-                setViewMode('list');
+                setMode('rescue');
               }}
               accessibilityRole="button"
-              accessibilityLabel="Ver lista"
+              accessibilityLabel="Rescate"
             >
-              <Ionicons name="list-outline" size={15} color={viewMode === 'list' ? theme.text : theme.textSecondary} />
-              <ThemedText type="small" style={{ color: viewMode === 'list' ? theme.text : theme.textSecondary, fontWeight: '600' }}>
-                Lista
+              <ThemedText
+                type="small"
+                style={{ color: mode === 'rescue' ? theme.text : theme.textSecondary, fontWeight: '700' }}
+              >
+                Rescate
               </ThemedText>
             </Pressable>
             <Pressable
-              style={[styles.viewToggleOption, viewMode === 'map' && { backgroundColor: theme.surface }]}
+              style={[styles.segmentedOption, mode === 'adoption' && { backgroundColor: theme.surface }]}
               onPress={() => {
                 tapHaptic();
-                setViewMode('map');
+                setMode('adoption');
               }}
               accessibilityRole="button"
-              accessibilityLabel="Ver mapa"
+              accessibilityLabel="Adopción"
             >
-              <Ionicons name="map-outline" size={15} color={viewMode === 'map' ? theme.text : theme.textSecondary} />
-              <ThemedText type="small" style={{ color: viewMode === 'map' ? theme.text : theme.textSecondary, fontWeight: '600' }}>
-                Mapa
+              <ThemedText
+                type="small"
+                style={{ color: mode === 'adoption' ? theme.text : theme.textSecondary, fontWeight: '700' }}
+              >
+                Adopción
               </ThemedText>
             </Pressable>
           </ThemedView>
-        )}
 
-        <ThemedView style={styles.filters}>
-          {FILTERS.map(f => {
-            const active = filter === f.value;
-            return (
-              <Pressable
-                key={f.label}
-                style={[
-                  styles.filterChip,
-                  {
-                    backgroundColor: active ? theme.accent : theme.backgroundElement,
-                    borderColor: active ? theme.accent : theme.border,
-                  },
-                ]}
-                onPress={() => {
-                  tapHaptic();
-                  setFilter(active ? undefined : f.value);
-                }}
-              >
-                <ThemedText type="small" style={{ color: active ? theme.onAccent : theme.text, fontWeight: '600' }}>
-                  {f.label}
-                </ThemedText>
-              </Pressable>
-            );
-          })}
+          {!isAdoptionMode && (
+            <Pressable
+              style={[styles.viewIconButton, { backgroundColor: theme.backgroundElement }]}
+              onPress={() => {
+                tapHaptic();
+                setViewMode(viewMode === 'list' ? 'map' : 'list');
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={viewMode === 'list' ? 'Ver mapa' : 'Ver lista'}
+            >
+              <Ionicons name={viewMode === 'list' ? 'map-outline' : 'list-outline'} size={18} color={theme.text} />
+            </Pressable>
+          )}
         </ThemedView>
 
-        {profile?.role === 'shelter' && (
+        {!isAdoptionMode && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filters}
+            style={styles.filtersScroll}
+          >
+            {STATUS_FILTERS.map(f => {
+              const active = statusFilter === f.value;
+              return (
+                <Pressable
+                  key={f.label}
+                  style={[
+                    styles.filterChip,
+                    {
+                      backgroundColor: active ? theme.accent : theme.backgroundElement,
+                      borderColor: active ? theme.accent : theme.border,
+                    },
+                  ]}
+                  onPress={() => {
+                    tapHaptic();
+                    setStatusFilter(f.value);
+                  }}
+                >
+                  <ThemedText type="small" style={{ color: active ? theme.onAccent : theme.text, fontWeight: '600' }}>
+                    {f.label}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        )}
+
+        {isAdoptionMode && profile?.role === 'shelter' && (
           <Pressable
             onPress={() => {
               tapHaptic();
@@ -168,7 +205,7 @@ export default function PostsListScreen() {
           >
             <Ionicons name="home-outline" size={18} color={theme.accent} />
             <ThemedText type="small" style={{ color: theme.accent, flex: 1 }}>
-              Cuenta de refugio — publicá un perro en adopción.
+              ¿Sos refugio? Publicá un perro en adopción.
             </ThemedText>
             <Ionicons name="chevron-forward" size={16} color={theme.accent} />
           </Pressable>
@@ -278,7 +315,7 @@ function PostCard({ item }: { item: DogPostListItem }) {
         </ThemedView>
         <ThemedView style={styles.cardInfo}>
           <ThemedText type="defaultBold" numberOfLines={1}>
-            {item.zone_text}
+            {localityOnly(item.zone_text)}
           </ThemedText>
           {secondaryParts.length > 0 && (
             <ThemedText type="small" themeColor="textSecondary">
@@ -291,13 +328,11 @@ function PostCard({ item }: { item: DogPostListItem }) {
   );
 }
 
-// adoption_dogs has no lat/lng/status filtering to show here — list_adoption_dogs
-// already only returns status='available' dogs, so no StatusBadge is needed.
 function AdoptionDogCard({ item }: { item: AdoptionDogListItem }) {
   const theme = useTheme();
   const [imageFailed, setImageFailed] = useState(false);
   const hasPhoto = item.photo_urls.length > 0 && !imageFailed;
-  const secondaryParts = [item.breed || null, item.shelter_name].filter(Boolean);
+  const secondaryParts = [item.shelter_name, item.breed || null].filter(Boolean);
 
   return (
     <Link href={{ pathname: '/adoption/[id]', params: { id: item.id } }} asChild>
@@ -320,6 +355,9 @@ function AdoptionDogCard({ item }: { item: AdoptionDogListItem }) {
               <Ionicons name="paw" size={32} color={theme.textSecondary} />
             </ThemedView>
           )}
+          <ThemedView style={styles.photoBadge}>
+            <StatusBadge meta={ADOPTION_BADGE_META} variant="solid" size="sm" />
+          </ThemedView>
         </ThemedView>
         <ThemedView style={styles.cardInfo}>
           <ThemedText type="defaultBold" numberOfLines={1}>
@@ -369,36 +407,52 @@ const styles = StyleSheet.create({
   title: {
     marginTop: 2,
   },
-  viewToggle: {
+  controlsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    marginBottom: Spacing.three,
+  },
+  segmented: {
     flexDirection: 'row',
     alignSelf: 'flex-start',
     borderRadius: Radius.full,
     padding: 2,
-    marginBottom: Spacing.three,
   },
-  viewToggleOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+  segmentedOption: {
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.one + 2,
     borderRadius: Radius.full,
   },
-  filters: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.two,
-    paddingBottom: Spacing.three,
-  },
-  filterChip: {
-    flexBasis: '48%',
-    flexGrow: 1,
+  viewIconButton: {
     alignItems: 'center',
     justifyContent: 'center',
+    width: 32,
+    height: 32,
+    borderRadius: Radius.full,
+  },
+  // A horizontal ScrollView is a flex container: inside a flex-column
+  // parent it doesn't size its height to content — it collapses to 0 and
+  // the chips silently never appear. `flexGrow: 0` is the fix used by the
+  // other horizontal scrollers in this app (see thumbRowScroll in
+  // new-post.tsx); the explicit height guarantees the row is visible.
+  filtersScroll: {
+    flexGrow: 0,
+    height: 40,
+    marginBottom: Spacing.three,
+  },
+  filters: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  filterChip: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 36,
     borderRadius: 10,
     borderWidth: 1.5,
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
   },
   banner: {
     flexDirection: 'row',
