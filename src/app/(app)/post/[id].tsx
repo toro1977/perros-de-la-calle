@@ -31,12 +31,7 @@ import { DogPostDetail, useDogPostsStore } from '@/stores/dogPostsStore';
 import { DogPostType } from '@/types/database.types';
 import { formatEventDate } from '@/utils/format-date';
 import { normalizeArPhone } from '@/utils/phone';
-
-function buildWhatsAppUrl(e164Phone: string, zoneText: string) {
-  const digits = e164Phone.replace(/\D/g, '');
-  const message = `Hola! Vi tu aviso de un perro en ${zoneText} en la app Perros de la calle.`;
-  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
-}
+import { buildWhatsAppUrl } from '@/utils/whatsapp';
 
 // Public landing (src/app/p/[id].tsx), deployed via EAS Hosting — opens
 // for anyone, app installed or not. Update this if the site ever moves

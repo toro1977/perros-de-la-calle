@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Link, router, useFocusEffect } from 'expo-router';
@@ -35,13 +35,28 @@ export default function MyPostsScreen() {
   const updateAdoptionDogStatus = useAdoptionDogsStore(s => s.updateAdoptionDogStatus);
   const isLoadingAdoption = useAdoptionDogsStore(s => s.isLoading);
 
-  const reload = useCallback(() => {
-    if (!profile?.id) return;
-    fetchMyPosts(profile.id);
-    if (isShelter) fetchMyAdoptionDogs(profile.id);
-  }, [profile?.id, isShelter]);
+  const [pullRefreshing, setPullRefreshing] = useState(false);
 
-  useFocusEffect(reload);
+  const reload = useCallback(async () => {
+    if (!profile?.id) return;
+    await Promise.all([fetchMyPosts(profile.id), isShelter ? fetchMyAdoptionDogs(profile.id) : Promise.resolve()]);
+  }, [profile, isShelter, fetchMyPosts, fetchMyAdoptionDogs]);
+
+  // Silent background refetch on every focus (see the matching fix in
+  // (tabs)/index.tsx) — must not drive SectionList's `refreshing`, or the
+  // native pull-to-refresh spinner fires on every tab-switch return instead
+  // of only on an actual pull gesture.
+  useFocusEffect(
+    useCallback(() => {
+      reload();
+    }, [reload])
+  );
+
+  async function handlePullRefresh() {
+    setPullRefreshing(true);
+    await reload();
+    setPullRefreshing(false);
+  }
 
   function handleDelete(post: MyDogPost) {
     Alert.alert('Borrar aviso', '¿Seguro que querés borrarlo? No se puede deshacer.', [
@@ -96,7 +111,7 @@ export default function MyPostsScreen() {
               </ThemedView>
             )}
           </ThemedView>
-          <ThemedView style={styles.cardInfo}>
+          <ThemedView style={[styles.cardInfo, { backgroundColor: theme.surface }]}>
             <ThemedText type="defaultBold" numberOfLines={1}>
               {item.zone_text}
             </ThemedText>
@@ -107,7 +122,7 @@ export default function MyPostsScreen() {
           </ThemedView>
         </Pressable>
 
-        <ThemedView style={styles.cardActions}>
+        <ThemedView style={[styles.cardActions, { backgroundColor: theme.surface }]}>
           <Pressable
             onPress={() => {
               tapHaptic();
@@ -150,7 +165,7 @@ export default function MyPostsScreen() {
               <StatusBadge meta={ADOPTION_STATUS_META[item.status as AdoptionDogStatus]} variant="solid" size="sm" />
             </ThemedView>
           </ThemedView>
-          <ThemedView style={styles.cardInfo}>
+          <ThemedView style={[styles.cardInfo, { backgroundColor: theme.surface }]}>
             <ThemedText type="defaultBold" numberOfLines={1}>
               {item.name || 'Perro en adopción'}
             </ThemedText>
@@ -161,7 +176,7 @@ export default function MyPostsScreen() {
           </ThemedView>
         </Pressable>
 
-        <ThemedView style={styles.cardActions}>
+        <ThemedView style={[styles.cardActions, { backgroundColor: theme.surface }]}>
           <Pressable
             onPress={() => {
               tapHaptic();
@@ -221,8 +236,8 @@ export default function MyPostsScreen() {
               {section.title}
             </ThemedText>
           )}
-          onRefresh={reload}
-          refreshing={isLoading}
+          onRefresh={handlePullRefresh}
+          refreshing={pullRefreshing}
           stickySectionHeadersEnabled={false}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={

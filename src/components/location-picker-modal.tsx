@@ -110,7 +110,7 @@ export function LocationPickerModal({ visible, initialLocation, onConfirm, onClo
             edges={['bottom']}
             style={[styles.bottomBar, { backgroundColor: theme.surface, borderTopColor: theme.border }]}
           >
-            <ThemedView style={styles.zoneRow}>
+            <ThemedView style={[styles.zoneRow, { backgroundColor: theme.surface }]}>
               <Ionicons name="location-outline" size={16} color={theme.textSecondary} />
               {isResolving ? (
                 <ActivityIndicator size="small" color={theme.textSecondary} />

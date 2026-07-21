@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Link, router, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { FlatList, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { ActivityIndicator, FlatList, Linking, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabBar, TAB_BAR_HEIGHT } from '@/components/bottom-tab-bar';
 import { Button } from '@/components/button';
@@ -23,7 +23,9 @@ import { useFeedViewStore } from '@/stores/feedViewStore';
 import { DogPostType } from '@/types/database.types';
 import { formatDistance } from '@/utils/format-distance';
 import { tapHaptic } from '@/utils/haptics';
+import { normalizeArPhone } from '@/utils/phone';
 import { formatRelativeTime } from '@/utils/relative-time';
+import { buildWhatsAppUrl } from '@/utils/whatsapp';
 
 type FeedMode = 'rescue' | 'adoption';
 
@@ -76,19 +78,41 @@ export default function PostsListScreen() {
       .catch(() => {});
   }, []);
 
+  const [pullRefreshing, setPullRefreshing] = useState(false);
+
   const reload = useCallback(() => {
-    if (mode === 'adoption') {
-      fetchAdoptionDogs();
-    } else {
-      fetchPosts({ lat: coords?.lat, lng: coords?.lng, type: statusFilter });
-    }
+    return mode === 'adoption'
+      ? fetchAdoptionDogs()
+      : fetchPosts({ lat: coords?.lat, lng: coords?.lng, type: statusFilter });
   }, [coords, mode, statusFilter, fetchAdoptionDogs, fetchPosts]);
 
-  useFocusEffect(reload);
+  // Silent background refetch — every tab focus (including switching back
+  // from another tab, not just first mount) goes through here. Must NOT
+  // drive the FlatList's `refreshing` prop (see handlePullRefresh below):
+  // doing so used to fire the native pull-to-refresh spinner on every
+  // tab-switch return, which visibly collided with the tab transition
+  // animation.
+  useFocusEffect(
+    useCallback(() => {
+      reload();
+    }, [reload])
+  );
+
+  async function handlePullRefresh() {
+    setPullRefreshing(true);
+    await reload();
+    setPullRefreshing(false);
+  }
 
   function renderItem({ item }: { item: DogPostListItem | AdoptionDogListItem }) {
     return 'zone_text' in item ? <PostCard item={item} /> : <AdoptionDogCard item={item} />;
   }
+
+  // True only for the actual loaded FlatList (not loading/error skeletons,
+  // not map mode) — the one case where a horizontal ScrollView sibling
+  // silently fails to render (see FilterChips below for why).
+  const showRealFlatList =
+    (isAdoptionMode || viewMode === 'list') && !(fetchError && listData.length === 0) && !(isLoading && listData.length === 0);
 
   return (
     <ThemedView style={styles.container}>
@@ -159,37 +183,8 @@ export default function PostsListScreen() {
           )}
         </ThemedView>
 
-        {!isAdoptionMode && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filters}
-            style={styles.filtersScroll}
-          >
-            {STATUS_FILTERS.map(f => {
-              const active = statusFilter === f.value;
-              return (
-                <Pressable
-                  key={f.label}
-                  style={[
-                    styles.filterChip,
-                    {
-                      backgroundColor: active ? theme.accent : theme.backgroundElement,
-                      borderColor: active ? theme.accent : theme.border,
-                    },
-                  ]}
-                  onPress={() => {
-                    tapHaptic();
-                    setStatusFilter(f.value);
-                  }}
-                >
-                  <ThemedText type="small" style={{ color: active ? theme.onAccent : theme.text, fontWeight: '600' }}>
-                    {f.label}
-                  </ThemedText>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+        {!isAdoptionMode && !showRealFlatList && (
+          <FilterChips statusFilter={statusFilter} setStatusFilter={setStatusFilter} />
         )}
 
         {isAdoptionMode && profile?.role === 'shelter' && (
@@ -235,9 +230,13 @@ export default function PostsListScreen() {
                 data={listData}
                 keyExtractor={item => item.id}
                 renderItem={renderItem}
-                onRefresh={reload}
-                refreshing={isLoading}
+                onRefresh={handlePullRefresh}
+                refreshing={pullRefreshing}
+                showsVerticalScrollIndicator={false}
                 contentContainerStyle={[styles.listContent, { paddingBottom: fadeHeight }]}
+                ListHeaderComponent={
+                  !isAdoptionMode ? <FilterChips statusFilter={statusFilter} setStatusFilter={setStatusFilter} /> : undefined
+                }
                 ListEmptyComponent={
                   <ThemedView style={styles.empty}>
                     <Ionicons name="paw-outline" size={32} color={theme.textSecondary} />
@@ -274,22 +273,111 @@ export default function PostsListScreen() {
   );
 }
 
+// A horizontal ScrollView rendered as a sibling of the main vertical
+// FlatList silently fails to mount at all on this screen (RN 0.86 / Expo
+// SDK 57, reproduced with plain ScrollView, react-native-gesture-handler's
+// ScrollView, and a horizontal FlatList alike) — some New Architecture
+// conflict between two scrollable siblings in the same flex-column
+// parent. Nesting it as the FlatList's ListHeaderComponent instead (a
+// descendant, not a sibling) works around it; see showRealFlatList in
+// PostsListScreen for where this does/doesn't apply.
+function FilterChips({
+  statusFilter,
+  setStatusFilter,
+}: {
+  statusFilter: DogPostType | undefined;
+  setStatusFilter: (value: DogPostType | undefined) => void;
+}) {
+  const theme = useTheme();
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.filters}
+      style={styles.filtersScroll}
+    >
+      {STATUS_FILTERS.map(f => {
+        const active = statusFilter === f.value;
+        return (
+          <Pressable
+            key={f.label}
+            style={[
+              styles.filterChip,
+              {
+                backgroundColor: active ? theme.accent : theme.backgroundElement,
+                borderColor: active ? theme.accent : theme.border,
+              },
+            ]}
+            onPress={() => {
+              tapHaptic();
+              setStatusFilter(f.value);
+            }}
+          >
+            <ThemedText type="small" style={{ color: active ? theme.onAccent : theme.text, fontWeight: '600' }}>
+              {f.label}
+            </ThemedText>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
 // Any remote image can fail to load (upload never finished, storage
 // hiccup, empty photo_urls) — falls back to a placeholder icon instead
 // of a blank hole where the most important element of the card should be.
+// The list RPC (list_dog_posts) never returns contact_phone — it's only
+// revealed by the get_dog_post detail RPC, on demand, so the number
+// isn't sitting in a bulk-readable feed response. Contacting from the
+// card fetches it lazily, same as the detail screen does.
 function PostCard({ item }: { item: DogPostListItem }) {
   const theme = useTheme();
+  const getPost = useDogPostsStore(s => s.getPost);
   const [imageFailed, setImageFailed] = useState(false);
+  const [contactState, setContactState] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [pressed, setPressed] = useState(false);
   const hasPhoto = item.photo_urls.length > 0 && !imageFailed;
-  const secondaryParts = [item.distance_km != null ? formatDistance(item.distance_km) : null, item.breed || null].filter(Boolean);
+  const secondaryParts = [
+    item.breed || null,
+    item.distance_km != null ? formatDistance(item.distance_km) : null,
+    formatRelativeTime(item.created_at),
+  ].filter(Boolean);
+
+  async function handleContact() {
+    tapHaptic();
+    setContactState('loading');
+    try {
+      const detail = await getPost(item.id);
+      const normalizedPhone = detail?.contact_phone ? normalizeArPhone(detail.contact_phone) : null;
+      if (!normalizedPhone) {
+        setContactState('error');
+        setTimeout(() => setContactState('idle'), 2000);
+        return;
+      }
+      await Linking.openURL(buildWhatsAppUrl(normalizedPhone, item.zone_text));
+      setContactState('idle');
+    } catch {
+      setContactState('error');
+      setTimeout(() => setContactState('idle'), 2000);
+    }
+  }
 
   return (
     <Link href={{ pathname: '/post/[id]', params: { id: item.id } }} asChild>
+      {/* Link asChild clones this Pressable via a Slot whose prop-merge does
+          `{ ...slotStyle, ...childStyle }` — if childStyle were a function
+          (the usual `style={({pressed}) => ...}` Pressable pattern), spreading
+          a function yields `{}` and the entire style (border, radius, shadow)
+          silently vanishes, no error. Track `pressed` by hand instead so the
+          style prop is always a plain flattened object. */}
       <Pressable
         onPress={tapHaptic}
-        style={({ pressed }) =>
-          StyleSheet.flatten([styles.card, { backgroundColor: theme.surface, borderColor: theme.border, opacity: pressed ? 0.9 : 1 }])
-        }
+        onPressIn={() => setPressed(true)}
+        onPressOut={() => setPressed(false)}
+        style={StyleSheet.flatten([
+          styles.card,
+          { backgroundColor: theme.surface, opacity: pressed ? 0.9 : 1 },
+        ])}
       >
         <ThemedView style={styles.photoWrap}>
           {hasPhoto ? (
@@ -307,21 +395,39 @@ function PostCard({ item }: { item: DogPostListItem }) {
           <ThemedView style={styles.photoBadge}>
             <StatusBadge meta={DOG_POST_TYPE_META[item.type as DogPostType]} variant="solid" size="sm" />
           </ThemedView>
-          <ThemedView style={styles.photoTimestamp}>
-            <ThemedText type="caption" style={styles.timestampText}>
-              {formatRelativeTime(item.created_at)}
-            </ThemedText>
-          </ThemedView>
         </ThemedView>
-        <ThemedView style={styles.cardInfo}>
-          <ThemedText type="defaultBold" numberOfLines={1}>
-            {localityOnly(item.zone_text)}
-          </ThemedText>
-          {secondaryParts.length > 0 && (
-            <ThemedText type="small" themeColor="textSecondary">
-              {secondaryParts.join(' · ')}
+        <ThemedView style={[styles.cardInfo, styles.cardInfoRow, { backgroundColor: theme.surface, borderTopColor: theme.borderStrong }]}>
+          <ThemedView style={[styles.cardInfoLeft, { backgroundColor: theme.surface }]}>
+            <ThemedText type="defaultBold" numberOfLines={1}>
+              {localityOnly(item.zone_text)}
             </ThemedText>
-          )}
+            {secondaryParts.length > 0 && (
+              <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
+                {secondaryParts.join(' · ')}
+              </ThemedText>
+            )}
+          </ThemedView>
+          <Pressable
+            onPress={handleContact}
+            disabled={contactState === 'loading'}
+            style={({ pressed }) => [
+              styles.contactButton,
+              {
+                borderColor: contactState === 'error' ? theme.textSecondary : theme.accent,
+                opacity: pressed ? 0.6 : 1,
+              },
+            ]}
+          >
+            {contactState === 'loading' ? (
+              <ActivityIndicator size="small" color={theme.accent} />
+            ) : (
+              <Ionicons
+                name={contactState === 'error' ? 'alert-outline' : 'logo-whatsapp'}
+                size={20}
+                color={contactState === 'error' ? theme.textSecondary : theme.accent}
+              />
+            )}
+          </Pressable>
         </ThemedView>
       </Pressable>
     </Link>
@@ -331,16 +437,23 @@ function PostCard({ item }: { item: DogPostListItem }) {
 function AdoptionDogCard({ item }: { item: AdoptionDogListItem }) {
   const theme = useTheme();
   const [imageFailed, setImageFailed] = useState(false);
+  const [pressed, setPressed] = useState(false);
   const hasPhoto = item.photo_urls.length > 0 && !imageFailed;
   const secondaryParts = [item.shelter_name, item.breed || null].filter(Boolean);
 
   return (
     <Link href={{ pathname: '/adoption/[id]', params: { id: item.id } }} asChild>
+      {/* See the matching comment in PostCard: style must stay a plain
+          object here, never a `({pressed}) => ...` function, or Link
+          asChild's Slot silently drops the whole style on merge. */}
       <Pressable
         onPress={tapHaptic}
-        style={({ pressed }) =>
-          StyleSheet.flatten([styles.card, { backgroundColor: theme.surface, borderColor: theme.border, opacity: pressed ? 0.9 : 1 }])
-        }
+        onPressIn={() => setPressed(true)}
+        onPressOut={() => setPressed(false)}
+        style={StyleSheet.flatten([
+          styles.card,
+          { backgroundColor: theme.surface, opacity: pressed ? 0.9 : 1 },
+        ])}
       >
         <ThemedView style={styles.photoWrap}>
           {hasPhoto ? (
@@ -359,7 +472,7 @@ function AdoptionDogCard({ item }: { item: AdoptionDogListItem }) {
             <StatusBadge meta={ADOPTION_BADGE_META} variant="solid" size="sm" />
           </ThemedView>
         </ThemedView>
-        <ThemedView style={styles.cardInfo}>
+        <ThemedView style={[styles.cardInfo, { backgroundColor: theme.surface, borderTopColor: theme.borderStrong }]}>
           <ThemedText type="defaultBold" numberOfLines={1}>
             {item.name || 'Perro en adopción'}
           </ThemedText>
@@ -377,9 +490,9 @@ function AdoptionDogCard({ item }: { item: AdoptionDogListItem }) {
 function PostCardSkeleton() {
   const theme = useTheme();
   return (
-    <ThemedView style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+    <ThemedView style={[styles.card, { backgroundColor: theme.surface }]}>
       <Skeleton style={styles.photoWrap} />
-      <ThemedView style={styles.cardInfo}>
+      <ThemedView style={[styles.cardInfo, { backgroundColor: theme.surface, borderTopColor: theme.borderStrong }]}>
         <Skeleton style={[styles.skeletonLine, styles.skeletonLineWide]} />
         <Skeleton style={[styles.skeletonLine, styles.skeletonLineNarrow]} />
       </ThemedView>
@@ -431,11 +544,13 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: Radius.full,
   },
-  // A horizontal ScrollView is a flex container: inside a flex-column
-  // parent it doesn't size its height to content — it collapses to 0 and
-  // the chips silently never appear. `flexGrow: 0` is the fix used by the
-  // other horizontal scrollers in this app (see thumbRowScroll in
-  // new-post.tsx); the explicit height guarantees the row is visible.
+  // This is a horizontal FlatList, not ScrollView — a plain `<ScrollView
+  // horizontal>` here silently fails to render at all on this screen (RN
+  // 0.86 / Expo SDK 57, New Architecture), reproduced with both the core
+  // and react-native-gesture-handler implementations, cause unconfirmed.
+  // `flexGrow: 0` + explicit height keeps this row from collapsing to 0
+  // inside the flex-column parent, same fix as thumbRowScroll in
+  // new-post.tsx (which is a real ScrollView and still fine there).
   filtersScroll: {
     flexGrow: 0,
     height: 40,
@@ -467,7 +582,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
-    gap: Spacing.four,
+    gap: 10,
   },
   listFade: {
     position: 'absolute',
@@ -475,19 +590,22 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
   },
+  // No border: at 1-1.5px, combined with overflow:'hidden' + borderRadius,
+  // it read as a dark seam where the photo meets the rounded corner instead
+  // of a clean edge. Separation from the background comes from the shadow
+  // alone now.
   card: {
     borderRadius: 18,
-    borderWidth: 1,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 2,
   },
   photoWrap: {
     width: '100%',
-    height: 190,
+    aspectRatio: 2,
   },
   photo: {
     width: '100%',
@@ -505,21 +623,33 @@ const styles = StyleSheet.create({
     left: Spacing.two,
     backgroundColor: 'transparent',
   },
-  photoTimestamp: {
-    position: 'absolute',
-    top: Spacing.two,
-    right: Spacing.two,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: Radius.full,
-    paddingHorizontal: Spacing.two,
-    paddingVertical: 3,
-  },
-  timestampText: {
-    color: '#FFFFFF',
-  },
   cardInfo: {
     gap: 4,
-    padding: Spacing.three,
+    paddingTop: 10,
+    paddingHorizontal: 14,
+    paddingBottom: 12,
+    borderTopWidth: 1,
+  },
+  // Only PostCard needs the metadata split into a left text column and a
+  // right-aligned contact button — AdoptionDogCard keeps cardInfo's plain
+  // vertical stack (default flexDirection: 'column').
+  cardInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+  },
+  cardInfoLeft: {
+    flex: 1,
+    gap: 2,
+  },
+  contactButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 40,
+    height: 40,
+    borderRadius: Radius.full,
+    borderWidth: 1.5,
   },
   empty: {
     alignItems: 'center',
