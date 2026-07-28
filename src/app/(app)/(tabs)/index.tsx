@@ -13,6 +13,7 @@ import { StatusBadge } from '@/components/status-badge';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { DOG_POST_TYPE_META } from '@/constants/dog-post-types';
+import { VERIFIED_BADGE_META } from '@/constants/shelter-verification';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { getCurrentLocation } from '@/services/location';
@@ -20,6 +21,7 @@ import { AdoptionDogListItem, useAdoptionDogsStore } from '@/stores/adoptionDogs
 import { useAuthStore } from '@/stores/authStore';
 import { DogPostListItem, useDogPostsStore } from '@/stores/dogPostsStore';
 import { useFeedViewStore } from '@/stores/feedViewStore';
+import { useShelterStore } from '@/stores/shelterStore';
 import { DogPostType } from '@/types/database.types';
 import { formatDistance } from '@/utils/format-distance';
 import { tapHaptic } from '@/utils/haptics';
@@ -60,6 +62,9 @@ export default function PostsListScreen() {
   const fetchAdoptionDogs = useAdoptionDogsStore(s => s.fetchAdoptionDogs);
   const isLoadingAdoption = useAdoptionDogsStore(s => s.isLoading);
   const adoptionError = useAdoptionDogsStore(s => s.error);
+  const shelter = useShelterStore(s => s.shelter);
+  const fetchMyShelter = useShelterStore(s => s.fetchMyShelter);
+  const isVerifiedShelter = shelter?.verification_status === 'approved';
   const [mode, setMode] = useState<FeedMode>('rescue');
   const [statusFilter, setStatusFilter] = useState<DogPostType | undefined>(undefined);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -95,7 +100,8 @@ export default function PostsListScreen() {
   useFocusEffect(
     useCallback(() => {
       reload();
-    }, [reload])
+      if (profile?.id) fetchMyShelter(profile.id);
+    }, [reload, profile, fetchMyShelter])
   );
 
   async function handlePullRefresh() {
@@ -187,7 +193,7 @@ export default function PostsListScreen() {
           <FilterChips statusFilter={statusFilter} setStatusFilter={setStatusFilter} />
         )}
 
-        {isAdoptionMode && profile?.role === 'shelter' && (
+        {isAdoptionMode && isVerifiedShelter && (
           <Pressable
             onPress={() => {
               tapHaptic();
@@ -481,6 +487,7 @@ function AdoptionDogCard({ item }: { item: AdoptionDogListItem }) {
               {secondaryParts.join(' · ')}
             </ThemedText>
           )}
+          {item.verification_status === 'approved' && <StatusBadge meta={VERIFIED_BADGE_META} size="sm" />}
         </ThemedView>
       </Pressable>
     </Link>

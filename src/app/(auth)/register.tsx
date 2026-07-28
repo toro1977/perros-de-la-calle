@@ -10,14 +10,8 @@ import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuthStore } from '@/stores/authStore';
-import { UserRole } from '@/types/database.types';
 import { MAX_RAW_PHONE_LENGTH, normalizeArPhone } from '@/utils/phone';
 import { scrollFieldIntoView } from '@/utils/scroll-to-input';
-
-const ROLES: { value: UserRole; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { value: 'individual', label: 'Persona', icon: 'person-outline' },
-  { value: 'shelter', label: 'Refugio / rescatista', icon: 'home-outline' },
-];
 
 export default function RegisterScreen() {
   const theme = useTheme();
@@ -25,7 +19,6 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<UserRole>('individual');
   const [error, setError] = useState<string | null>(null);
   const signUpWithEmail = useAuthStore(s => s.signUpWithEmail);
   const isLoading = useAuthStore(s => s.isLoading);
@@ -49,7 +42,7 @@ export default function RegisterScreen() {
     }
     setError(null);
     try {
-      await signUpWithEmail(email, password, fullName, normalizedPhone, role);
+      await signUpWithEmail(email, password, fullName, normalizedPhone);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo crear la cuenta');
     }
@@ -152,37 +145,6 @@ export default function RegisterScreen() {
                 onFocus={() => scrollFieldIntoView(scrollRef.current, passwordRef.current)}
               />
 
-              <ThemedText type="caption" themeColor="textSecondary" style={styles.roleLabel}>
-                Tipo de cuenta
-              </ThemedText>
-              <ThemedView style={styles.roleRow}>
-                {ROLES.map(opt => {
-                  const selected = role === opt.value;
-                  return (
-                    <Pressable
-                      key={opt.value}
-                      style={[
-                        styles.roleOption,
-                        {
-                          backgroundColor: selected ? theme.accentSoft : theme.backgroundElement,
-                          borderColor: selected ? theme.accent : theme.border,
-                          borderWidth: selected ? 2 : 1,
-                        },
-                      ]}
-                      onPress={() => setRole(opt.value)}
-                    >
-                      <Ionicons name={opt.icon} size={20} color={selected ? theme.accent : theme.textSecondary} />
-                      <ThemedText
-                        type="small"
-                        style={{ color: selected ? theme.accent : theme.text, fontWeight: '600' }}
-                      >
-                        {opt.label}
-                      </ThemedText>
-                    </Pressable>
-                  );
-                })}
-              </ThemedView>
-
               {error && (
                 <ThemedView style={[styles.errorBox, { backgroundColor: theme.dangerSoft }]}>
                   <Ionicons name="alert-circle" size={16} color={theme.danger} />
@@ -260,21 +222,6 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: Spacing.three,
-  },
-  roleLabel: {
-    textTransform: 'uppercase',
-    marginTop: Spacing.one,
-  },
-  roleRow: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-  },
-  roleOption: {
-    flex: 1,
-    borderRadius: Radius.sm,
-    paddingVertical: Spacing.three,
-    alignItems: 'center',
-    gap: Spacing.one,
   },
   errorBox: {
     flexDirection: 'row',

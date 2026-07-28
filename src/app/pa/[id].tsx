@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import { Image } from 'expo-image';
 import { useLocalSearchParams } from 'expo-router';
-import { Linking, Platform, ScrollView, StyleSheet } from 'react-native';
+import { Linking, Platform, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '@/components/button';
 import { Skeleton } from '@/components/skeleton';
@@ -10,10 +11,12 @@ import { StatusBadge } from '@/components/status-badge';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ADOPTION_STATUS_META } from '@/constants/adoption-status';
+import { VERIFIED_BADGE_META } from '@/constants/shelter-verification';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { AdoptionDogDetail, useAdoptionDogsStore } from '@/stores/adoptionDogsStore';
 import { AdoptionDogStatus } from '@/types/database.types';
+import { tapHaptic } from '@/utils/haptics';
 import { normalizeArPhone } from '@/utils/phone';
 
 // Public, unauthenticated adoption dog page — the landing that a shared
@@ -35,6 +38,7 @@ export default function PublicAdoptionDogScreen() {
   const [dog, setDog] = useState<AdoptionDogDetail | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [contactError, setContactError] = useState<string | null>(null);
+  const [copiedField, setCopiedField] = useState<'alias' | 'cbu' | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -46,13 +50,23 @@ export default function PublicAdoptionDogScreen() {
 
   async function handleContact() {
     if (!dog) return;
-    const normalizedPhone = dog.contact_phone ? normalizeArPhone(dog.contact_phone) : null;
+    // Prefer the shelter's dedicated WhatsApp over the account owner's
+    // personal phone — see the matching comment in (app)/adoption/[id].tsx.
+    const rawPhone = dog.contact_whatsapp || dog.contact_phone;
+    const normalizedPhone = rawPhone ? normalizeArPhone(rawPhone) : null;
     if (!normalizedPhone) {
       setContactError('El refugio no dejó un teléfono de contacto válido.');
       return;
     }
     setContactError(null);
     await Linking.openURL(buildWhatsAppUrl(normalizedPhone, dog.name));
+  }
+
+  async function handleCopy(field: 'alias' | 'cbu', value: string) {
+    tapHaptic();
+    await Clipboard.setStringAsync(value);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2000);
   }
 
   function handleOpenApp() {
@@ -110,6 +124,7 @@ export default function PublicAdoptionDogScreen() {
                 <ThemedText type="default">{dog.breed}</ThemedText>
               </ThemedView>
             )}
+            {dog.verification_status === 'approved' && <StatusBadge meta={VERIFIED_BADGE_META} size="sm" />}
           </ThemedView>
 
           {dog.description && (
@@ -117,6 +132,70 @@ export default function PublicAdoptionDogScreen() {
               <ThemedText type="default">{dog.description}</ThemedText>
             </ThemedView>
           )}
+
+          {dog.verification_status === 'approved' &&
+            (dog.donation_alias || dog.donation_cbu || dog.donation_mp_link) && (
+              <ThemedView style={[styles.donationBox, { backgroundColor: theme.backgroundElement }]}>
+                <ThemedText type="defaultBold">Cómo ayudar</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {dog.shelter_name} solo muestra estos datos acá — la app no procesa pagos.
+                </ThemedText>
+
+                {dog.donation_alias && (
+                  <Pressable
+                    onPress={() => handleCopy('alias', dog.donation_alias!)}
+                    style={({ pressed }) => [styles.donationRow, { opacity: pressed ? 0.7 : 1 }]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Copiar alias"
+                  >
+                    <ThemedView style={styles.donationRowText}>
+                      <ThemedText type="caption" themeColor="textSecondary">
+                        Alias
+                      </ThemedText>
+                      <ThemedText type="default">{dog.donation_alias}</ThemedText>
+                    </ThemedView>
+                    <Ionicons
+                      name={copiedField === 'alias' ? 'checkmark' : 'copy-outline'}
+                      size={18}
+                      color={copiedField === 'alias' ? theme.success : theme.accent}
+                    />
+                  </Pressable>
+                )}
+
+                {dog.donation_cbu && (
+                  <Pressable
+                    onPress={() => handleCopy('cbu', dog.donation_cbu!)}
+                    style={({ pressed }) => [styles.donationRow, { opacity: pressed ? 0.7 : 1 }]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Copiar CVU o CBU"
+                  >
+                    <ThemedView style={styles.donationRowText}>
+                      <ThemedText type="caption" themeColor="textSecondary">
+                        CVU / CBU
+                      </ThemedText>
+                      <ThemedText type="default">{dog.donation_cbu}</ThemedText>
+                    </ThemedView>
+                    <Ionicons
+                      name={copiedField === 'cbu' ? 'checkmark' : 'copy-outline'}
+                      size={18}
+                      color={copiedField === 'cbu' ? theme.success : theme.accent}
+                    />
+                  </Pressable>
+                )}
+
+                {dog.donation_mp_link && (
+                  <Button
+                    label="Donar por MercadoPago"
+                    variant="secondary"
+                    onPress={() => {
+                      tapHaptic();
+                      Linking.openURL(dog.donation_mp_link!);
+                    }}
+                    icon={<Ionicons name="open-outline" size={18} color={theme.text} />}
+                  />
+                )}
+              </ThemedView>
+            )}
 
           {contactError && (
             <ThemedView style={[styles.errorBox, { backgroundColor: theme.dangerSoft }]}>
@@ -189,6 +268,22 @@ const styles = StyleSheet.create({
   descriptionBox: {
     borderRadius: Radius.md,
     padding: Spacing.three,
+  },
+  donationBox: {
+    borderRadius: Radius.md,
+    padding: Spacing.three,
+    gap: Spacing.two,
+  },
+  donationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+    backgroundColor: 'transparent',
+  },
+  donationRowText: {
+    gap: Spacing.half,
+    backgroundColor: 'transparent',
   },
   errorBox: {
     flexDirection: 'row',

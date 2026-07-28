@@ -12,6 +12,7 @@ export default function AppLayout() {
       <Stack.Screen name="new-post" options={{ title: 'Publicar aviso', headerShown: false, animation: 'none' }} />
       <Stack.Screen name="post/[id]" options={{ title: 'Detalle del aviso', headerShown: false }} />
       <Stack.Screen name="adoption/[id]" options={{ title: 'Perro en adopción', headerShown: false }} />
+      <Stack.Screen name="shelter-profile" options={{ title: 'Refugio / rescatista', headerShown: false }} />
     </Stack>
   );
 }

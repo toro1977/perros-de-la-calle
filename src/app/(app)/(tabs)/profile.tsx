@@ -1,7 +1,7 @@
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import {
   ActivityIndicator,
   Alert,
@@ -18,13 +18,28 @@ import { Button } from '@/components/button';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { SHELTER_VERIFICATION_STATUS_META } from '@/constants/shelter-verification';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { uploadAvatar } from '@/services/avatarUpload';
 import { pickAvatarPhoto } from '@/services/photoPicker';
 import { useAuthStore } from '@/stores/authStore';
+import { useShelterStore } from '@/stores/shelterStore';
+import { ShelterVerificationStatus } from '@/types/database.types';
 import { MAX_RAW_PHONE_LENGTH, normalizeArPhone } from '@/utils/phone';
 import { scrollFieldIntoView } from '@/utils/scroll-to-input';
+
+// icon/tone for pending/approved/rejected come from the shared
+// SHELTER_VERIFICATION_STATUS_META (same source shelter-profile.tsx's
+// status banner uses) — only the copy and the "no row yet" case are
+// specific to this entry point.
+const SHELTER_ENTRY_LABEL: Record<'none' | ShelterVerificationStatus, string> = {
+  none: '¿Sos refugio o rescatista? Verificá tu cuenta',
+  pending: 'Verificación en revisión',
+  approved: 'Refugio verificado — editar datos',
+  rejected: 'Solicitud rechazada — volver a solicitar',
+};
+const SHELTER_ENTRY_NONE_ICON_TONE = { icon: 'home-outline' as const, tone: 'accent' as const };
 
 export default function ProfileScreen() {
   const theme = useTheme();
@@ -34,6 +49,19 @@ export default function ProfileScreen() {
   const updateAvatar = useAuthStore(s => s.updateAvatar);
   const deleteAccount = useAuthStore(s => s.deleteAccount);
   const isLoading = useAuthStore(s => s.isLoading);
+  const shelter = useShelterStore(s => s.shelter);
+  const fetchMyShelter = useShelterStore(s => s.fetchMyShelter);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (profile?.id) fetchMyShelter(profile.id);
+    }, [profile, fetchMyShelter])
+  );
+
+  const shelterEntryKey = (shelter?.verification_status as ShelterVerificationStatus | undefined) ?? 'none';
+  const shelterEntryIconTone =
+    shelterEntryKey === 'none' ? SHELTER_ENTRY_NONE_ICON_TONE : SHELTER_VERIFICATION_STATUS_META[shelterEntryKey];
+  const shelterEntryLabel = SHELTER_ENTRY_LABEL[shelterEntryKey];
 
   const [fullName, setFullName] = useState(profile?.full_name ?? '');
   const [phone, setPhone] = useState(profile?.phone?.replace(/^\+549/, '') ?? '');
@@ -189,6 +217,26 @@ export default function ProfileScreen() {
             )}
 
             <Button label="Guardar cambios" onPress={handleSave} loading={isLoading} />
+
+            <Pressable
+              onPress={() => router.push('/shelter-profile')}
+              style={({ pressed }) => [
+                styles.shelterEntry,
+                {
+                  backgroundColor: theme[`${shelterEntryIconTone.tone}Soft` as const],
+                  borderColor: theme[shelterEntryIconTone.tone],
+                  opacity: pressed ? 0.85 : 1,
+                },
+              ]}
+              accessibilityRole="button"
+            >
+              <Ionicons name={shelterEntryIconTone.icon} size={18} color={theme[shelterEntryIconTone.tone]} />
+              <ThemedText type="small" style={{ color: theme[shelterEntryIconTone.tone], flex: 1 }}>
+                {shelterEntryLabel}
+              </ThemedText>
+              <Ionicons name="chevron-forward" size={16} color={theme[shelterEntryIconTone.tone]} />
+            </Pressable>
+
             <Button
               label="Mis avisos"
               variant="ghost"
@@ -292,5 +340,13 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     padding: Spacing.two,
     borderRadius: Radius.sm,
+  },
+  shelterEntry: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    borderWidth: 1,
+    borderRadius: Radius.sm,
+    padding: Spacing.two + 2,
   },
 });

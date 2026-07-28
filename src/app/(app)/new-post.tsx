@@ -19,6 +19,7 @@ import { PickedPhoto, pickPhotos } from '@/services/photoPicker';
 import { useAdoptionDogsStore } from '@/stores/adoptionDogsStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useDogPostsStore } from '@/stores/dogPostsStore';
+import { useShelterStore } from '@/stores/shelterStore';
 import { DogPostType } from '@/types/database.types';
 import { scrollFieldIntoView } from '@/utils/scroll-to-input';
 
@@ -61,11 +62,18 @@ export default function NewPostScreen() {
   const updateAdoptionDog = useAdoptionDogsStore(s => s.updateAdoptionDog);
   const getAdoptionDog = useAdoptionDogsStore(s => s.getAdoptionDog);
   const isLoadingAdoption = useAdoptionDogsStore(s => s.isLoading);
+  const shelter = useShelterStore(s => s.shelter);
+  const fetchMyShelter = useShelterStore(s => s.fetchMyShelter);
+  const isVerifiedShelter = shelter?.verification_status === 'approved';
 
-  const typeOptions: FormType[] = profile?.role === 'shelter' ? ['lost', 'found', 'stray', 'adoption'] : ['lost', 'found', 'stray'];
+  useEffect(() => {
+    if (profile?.id) fetchMyShelter(profile.id);
+  }, [profile, fetchMyShelter]);
+
+  const typeOptions: FormType[] = isVerifiedShelter ? ['lost', 'found', 'stray', 'adoption'] : ['lost', 'found', 'stray'];
 
   const [type, setType] = useState<FormType>(
-    isAdoptionEdit || (typeParam === 'adoption' && profile?.role === 'shelter') ? 'adoption' : 'lost'
+    isAdoptionEdit || (typeParam === 'adoption' && isVerifiedShelter) ? 'adoption' : 'lost'
   );
   const [photos, setPhotos] = useState<PhotoSlot[]>([]);
   const [name, setName] = useState('');

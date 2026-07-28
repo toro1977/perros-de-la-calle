@@ -365,9 +365,15 @@ export type Database = {
       }
       shelters: {
         Row: {
+          bio: string | null
+          contact_whatsapp: string | null
           created_at: string
           cuit: string | null
+          donation_alias: string | null
+          donation_cbu: string | null
+          donation_mp_link: string | null
           id: string
+          locality: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           shelter_name: string
@@ -377,9 +383,15 @@ export type Database = {
           verification_status: string
         }
         Insert: {
+          bio?: string | null
+          contact_whatsapp?: string | null
           created_at?: string
           cuit?: string | null
+          donation_alias?: string | null
+          donation_cbu?: string | null
+          donation_mp_link?: string | null
           id: string
+          locality?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           shelter_name: string
@@ -389,9 +401,15 @@ export type Database = {
           verification_status?: string
         }
         Update: {
+          bio?: string | null
+          contact_whatsapp?: string | null
           created_at?: string
           cuit?: string | null
+          donation_alias?: string | null
+          donation_cbu?: string | null
+          donation_mp_link?: string | null
           id?: string
+          locality?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           shelter_name?: string
@@ -520,22 +538,40 @@ export type Database = {
       }
       shelters_public: {
         Row: {
+          bio: string | null
+          contact_whatsapp: string | null
           created_at: string | null
+          donation_alias: string | null
+          donation_cbu: string | null
+          donation_mp_link: string | null
           id: string | null
+          locality: string | null
           shelter_name: string | null
           social_links: string | null
           verification_status: string | null
         }
         Insert: {
+          bio?: string | null
+          contact_whatsapp?: string | null
           created_at?: string | null
+          donation_alias?: string | null
+          donation_cbu?: string | null
+          donation_mp_link?: string | null
           id?: string | null
+          locality?: string | null
           shelter_name?: string | null
           social_links?: string | null
           verification_status?: string | null
         }
         Update: {
+          bio?: string | null
+          contact_whatsapp?: string | null
           created_at?: string | null
+          donation_alias?: string | null
+          donation_cbu?: string | null
+          donation_mp_link?: string | null
           id?: string | null
+          locality?: string | null
           shelter_name?: string | null
           social_links?: string | null
           verification_status?: string | null
@@ -835,16 +871,23 @@ export type Database = {
       get_adoption_dog: {
         Args: { p_id: string }
         Returns: {
+          bio: string
           breed: string
           contact_phone: string
+          contact_whatsapp: string
           created_at: string
           description: string
+          donation_alias: string
+          donation_cbu: string
+          donation_mp_link: string
           id: string
+          locality: string
           name: string
           photo_urls: string[]
           shelter_id: string
           shelter_name: string
           status: string
+          verification_status: string
         }[]
       }
       get_dog_post: {
@@ -869,15 +912,22 @@ export type Database = {
       list_adoption_dogs: {
         Args: never
         Returns: {
+          bio: string
           breed: string
+          contact_whatsapp: string
           created_at: string
           description: string
+          donation_alias: string
+          donation_cbu: string
+          donation_mp_link: string
           id: string
+          locality: string
           name: string
           photo_urls: string[]
           shelter_id: string
           shelter_name: string
           status: string
+          verification_status: string
         }[]
       }
       list_dog_posts: {

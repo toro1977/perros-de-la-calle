@@ -15,6 +15,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { MyAdoptionDog, useAdoptionDogsStore } from '@/stores/adoptionDogsStore';
 import { useAuthStore } from '@/stores/authStore';
 import { MyDogPost, useDogPostsStore } from '@/stores/dogPostsStore';
+import { useShelterStore } from '@/stores/shelterStore';
 import { AdoptionDogStatus, DogPostType } from '@/types/database.types';
 import { tapHaptic } from '@/utils/haptics';
 import { formatRelativeTime } from '@/utils/relative-time';
@@ -24,7 +25,9 @@ const ADOPTION_STATUS_ORDER: AdoptionDogStatus[] = ['available', 'in_process', '
 export default function MyPostsScreen() {
   const theme = useTheme();
   const profile = useAuthStore(s => s.profile);
-  const isShelter = profile?.role === 'shelter';
+  const shelter = useShelterStore(s => s.shelter);
+  const fetchMyShelter = useShelterStore(s => s.fetchMyShelter);
+  const isShelter = shelter?.verification_status === 'approved';
   const myPosts = useDogPostsStore(s => s.myPosts);
   const fetchMyPosts = useDogPostsStore(s => s.fetchMyPosts);
   const deletePost = useDogPostsStore(s => s.deletePost);
@@ -39,8 +42,12 @@ export default function MyPostsScreen() {
 
   const reload = useCallback(async () => {
     if (!profile?.id) return;
-    await Promise.all([fetchMyPosts(profile.id), isShelter ? fetchMyAdoptionDogs(profile.id) : Promise.resolve()]);
-  }, [profile, isShelter, fetchMyPosts, fetchMyAdoptionDogs]);
+    await Promise.all([
+      fetchMyPosts(profile.id),
+      fetchMyShelter(profile.id),
+      fetchMyAdoptionDogs(profile.id),
+    ]);
+  }, [profile, fetchMyPosts, fetchMyShelter, fetchMyAdoptionDogs]);
 
   // Silent background refetch on every focus (see the matching fix in
   // (tabs)/index.tsx) — must not drive SectionList's `refreshing`, or the

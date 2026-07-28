@@ -1,7 +1,7 @@
 import { Session } from '@supabase/supabase-js';
 import { create } from 'zustand';
 import { supabase } from '@/services/supabase';
-import { Database, UserRole } from '@/types/database.types';
+import { Database } from '@/types/database.types';
 
 type UserRow = Database['public']['Tables']['users']['Row'];
 
@@ -16,7 +16,7 @@ type AuthState = {
 
 type AuthActions = {
   initialize: () => Promise<void>;
-  signUpWithEmail: (email: string, password: string, fullName: string, phone: string, role: UserRole) => Promise<void>;
+  signUpWithEmail: (email: string, password: string, fullName: string, phone: string) => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -26,10 +26,13 @@ type AuthActions = {
   dismissConfirmEmailPending: () => void;
 };
 
-// Creates the users (and shelters, if role=shelter) row the first time a
-// session appears with no matching profile yet. full_name/role travel in
-// the auth user's metadata (set at signUp) so this works whether the
-// session appears immediately or later, after email confirmation.
+// Creates the users row the first time a session appears with no
+// matching profile yet. Every signup lands as role='individual' —
+// "being a shelter/rescuer" is a verification requested later from the
+// profile (see requestShelterVerification), not a choice made here.
+// full_name/phone travel in the auth user's metadata (set at signUp) so
+// this works whether the session appears immediately or later, after
+// email confirmation.
 //
 // signIn/signUp call this directly AND onAuthStateChange's SIGNED_IN
 // listener calls it again for the same session — both can race on the
@@ -46,7 +49,6 @@ async function ensureProfile(session: Session) {
 
   const fullName = (session.user.user_metadata.full_name as string | undefined) ?? '';
   const phone = (session.user.user_metadata.phone as string | undefined) ?? null;
-  const role = (session.user.user_metadata.role as UserRole | undefined) ?? 'individual';
 
   const { error: userError } = await supabase
     .from('users')
@@ -56,18 +58,11 @@ async function ensureProfile(session: Session) {
         email: session.user.email!,
         full_name: fullName,
         phone,
-        role,
+        role: 'individual',
       },
       { onConflict: 'id', ignoreDuplicates: true }
     );
   if (userError) throw userError;
-
-  if (role === 'shelter') {
-    const { error: shelterError } = await supabase
-      .from('shelters')
-      .upsert({ id: session.user.id, shelter_name: fullName }, { onConflict: 'id', ignoreDuplicates: true });
-    if (shelterError) throw shelterError;
-  }
 }
 
 export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
@@ -100,13 +95,13 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     set({ isInitialized: true });
   },
 
-  signUpWithEmail: async (email, password, fullName, phone, role) => {
+  signUpWithEmail: async (email, password, fullName, phone) => {
     set({ isLoading: true, confirmEmailPending: false });
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { full_name: fullName, phone, role }, emailRedirectTo: 'perrosdelacalle://' },
+        options: { data: { full_name: fullName, phone }, emailRedirectTo: 'perrosdelacalle://' },
       });
       if (error) throw error;
 
