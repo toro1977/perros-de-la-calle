@@ -9,6 +9,7 @@ export default function TabsLayout() {
   return (
     <Tabs screenOptions={{ headerShown: false, tabBarStyle: { display: 'none' } }}>
       <Tabs.Screen name="index" />
+      <Tabs.Screen name="adopcion" />
       <Tabs.Screen name="my-posts" />
       <Tabs.Screen name="notifications" />
       <Tabs.Screen name="profile" />

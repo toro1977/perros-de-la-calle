@@ -22,7 +22,7 @@ const PUBLISH_SIZE = 56;
 const useLiquidGlass = isGlassEffectAPIAvailable();
 
 type Tab = {
-  path: '/' | '/my-posts' | '/notifications' | '/profile';
+  path: '/' | '/adopcion' | '/notifications' | '/profile';
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   activeIcon: keyof typeof Ionicons.glyphMap;
@@ -33,10 +33,13 @@ type Tab = {
 // src/app/(app)/index.tsx). "Alertas" (src/app/(app)/notifications.tsx)
 // has no backend yet, so it carries a small "soon" dot instead of
 // pretending to work — never call it "Avisos", that word is already
-// taken by posts (see docs/rediseno-v3.md section A3/A4).
+// taken by posts (see docs/rediseno-v3.md section A3/A4). "Mis avisos"
+// isn't a tab anymore (simplificacion-feed brief) — it's still a real
+// route (`/my-posts`, registered in (tabs)/_layout.tsx), just reached
+// from Perfil instead of taking a 5th/6th tab slot.
 const LEFT_TABS: Tab[] = [
   { path: '/', label: 'Feed', icon: 'home-outline', activeIcon: 'home' },
-  { path: '/my-posts', label: 'Mis avisos', icon: 'megaphone-outline', activeIcon: 'megaphone' },
+  { path: '/adopcion', label: 'Adopción', icon: 'heart-outline', activeIcon: 'heart' },
 ];
 const RIGHT_TABS: Tab[] = [
   { path: '/notifications', label: 'Alertas', icon: 'notifications-outline', activeIcon: 'notifications' },

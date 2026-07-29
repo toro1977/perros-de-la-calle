@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { Link, router, useFocusEffect } from 'expo-router';
+import { Link, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ActivityIndicator, FlatList, Linking, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { ActivityIndicator, FlatList, Linking, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabBar, TAB_BAR_HEIGHT } from '@/components/bottom-tab-bar';
 import { Button } from '@/components/button';
@@ -13,15 +13,12 @@ import { StatusBadge } from '@/components/status-badge';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { DOG_POST_TYPE_META } from '@/constants/dog-post-types';
-import { VERIFIED_BADGE_META } from '@/constants/shelter-verification';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { getCurrentLocation } from '@/services/location';
-import { AdoptionDogListItem, useAdoptionDogsStore } from '@/stores/adoptionDogsStore';
 import { useAuthStore } from '@/stores/authStore';
 import { DogPostListItem, useDogPostsStore } from '@/stores/dogPostsStore';
 import { useFeedViewStore } from '@/stores/feedViewStore';
-import { useShelterStore } from '@/stores/shelterStore';
 import { DogPostType } from '@/types/database.types';
 import { formatDistance } from '@/utils/format-distance';
 import { tapHaptic } from '@/utils/haptics';
@@ -29,15 +26,21 @@ import { normalizeArPhone } from '@/utils/phone';
 import { formatRelativeTime } from '@/utils/relative-time';
 import { buildWhatsAppUrl } from '@/utils/whatsapp';
 
-type FeedMode = 'rescue' | 'adoption';
+type StatusFilterOption = {
+  value: DogPostType | undefined;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  tone: 'accent' | 'danger' | 'success' | 'warning';
+};
 
-// "Todos" is the only way back to the unfiltered state — tapping an
-// already-active chip is a no-op, unlike the old toggle-off behavior.
-const STATUS_FILTERS: { label: string; value: DogPostType | undefined }[] = [
-  { label: 'Todos', value: undefined },
-  { label: 'Perdidos', value: 'lost' },
-  { label: 'Encontrados', value: 'found' },
-  { label: 'Callejeros', value: 'stray' },
+// "Todos" isn't a DogPostType, so it's the only literal entry here — the
+// other three read their label/icon/tone straight off DOG_POST_TYPE_META
+// so a type's look never has to be kept in sync in two places.
+const STATUS_FILTERS: StatusFilterOption[] = [
+  { value: undefined, label: 'Todos', icon: 'apps-outline', tone: 'accent' },
+  { value: 'lost', label: DOG_POST_TYPE_META.lost.label, icon: DOG_POST_TYPE_META.lost.icon, tone: DOG_POST_TYPE_META.lost.tone },
+  { value: 'found', label: DOG_POST_TYPE_META.found.label, icon: DOG_POST_TYPE_META.found.icon, tone: DOG_POST_TYPE_META.found.tone },
+  { value: 'stray', label: DOG_POST_TYPE_META.stray.label, icon: DOG_POST_TYPE_META.stray.icon, tone: DOG_POST_TYPE_META.stray.tone },
 ];
 
 // zone_text is "Localidad, Partido, Provincia" (see reverse-geocode Edge
@@ -46,8 +49,6 @@ const STATUS_FILTERS: { label: string; value: DogPostType | undefined }[] = [
 function localityOnly(zoneText: string) {
   return zoneText.split(',')[0].trim();
 }
-
-const ADOPTION_BADGE_META = { label: 'En adopción', icon: 'home' as const, tone: 'success' as const };
 
 export default function PostsListScreen() {
   const theme = useTheme();
@@ -58,22 +59,10 @@ export default function PostsListScreen() {
   const fetchPosts = useDogPostsStore(s => s.fetchPosts);
   const isLoadingPosts = useDogPostsStore(s => s.isLoading);
   const postsError = useDogPostsStore(s => s.error);
-  const adoptionDogs = useAdoptionDogsStore(s => s.dogs);
-  const fetchAdoptionDogs = useAdoptionDogsStore(s => s.fetchAdoptionDogs);
-  const isLoadingAdoption = useAdoptionDogsStore(s => s.isLoading);
-  const adoptionError = useAdoptionDogsStore(s => s.error);
-  const shelter = useShelterStore(s => s.shelter);
-  const fetchMyShelter = useShelterStore(s => s.fetchMyShelter);
-  const isVerifiedShelter = shelter?.verification_status === 'approved';
-  const [mode, setMode] = useState<FeedMode>('rescue');
   const [statusFilter, setStatusFilter] = useState<DogPostType | undefined>(undefined);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const viewMode = useFeedViewStore(s => s.viewMode);
   const setViewMode = useFeedViewStore(s => s.setViewMode);
-  const isAdoptionMode = mode === 'adoption';
-  const listData = isAdoptionMode ? adoptionDogs : posts;
-  const isLoading = isAdoptionMode ? isLoadingAdoption : isLoadingPosts;
-  const fetchError = isAdoptionMode ? adoptionError : postsError;
 
   useEffect(() => {
     getCurrentLocation()
@@ -86,10 +75,8 @@ export default function PostsListScreen() {
   const [pullRefreshing, setPullRefreshing] = useState(false);
 
   const reload = useCallback(() => {
-    return mode === 'adoption'
-      ? fetchAdoptionDogs()
-      : fetchPosts({ lat: coords?.lat, lng: coords?.lng, type: statusFilter });
-  }, [coords, mode, statusFilter, fetchAdoptionDogs, fetchPosts]);
+    return fetchPosts({ lat: coords?.lat, lng: coords?.lng, type: statusFilter });
+  }, [coords, statusFilter, fetchPosts]);
 
   // Silent background refetch — every tab focus (including switching back
   // from another tab, not just first mount) goes through here. Must NOT
@@ -100,8 +87,7 @@ export default function PostsListScreen() {
   useFocusEffect(
     useCallback(() => {
       reload();
-      if (profile?.id) fetchMyShelter(profile.id);
-    }, [reload, profile, fetchMyShelter])
+    }, [reload])
   );
 
   async function handlePullRefresh() {
@@ -109,16 +95,6 @@ export default function PostsListScreen() {
     await reload();
     setPullRefreshing(false);
   }
-
-  function renderItem({ item }: { item: DogPostListItem | AdoptionDogListItem }) {
-    return 'zone_text' in item ? <PostCard item={item} /> : <AdoptionDogCard item={item} />;
-  }
-
-  // True only for the actual loaded FlatList (not loading/error skeletons,
-  // not map mode) — the one case where a horizontal ScrollView sibling
-  // silently fails to render (see FilterChips below for why).
-  const showRealFlatList =
-    (isAdoptionMode || viewMode === 'list') && !(fetchError && listData.length === 0) && !(isLoading && listData.length === 0);
 
   return (
     <ThemedView style={styles.container}>
@@ -129,102 +105,40 @@ export default function PostsListScreen() {
               {profile?.full_name ? `Hola, ${profile.full_name.split(' ')[0]}` : 'Hola!'}
             </ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
-              {isAdoptionMode ? 'Perros en adopción cerca tuyo' : 'Avisos cerca tuyo'}
+              Avisos cerca tuyo
             </ThemedText>
           </ThemedView>
         </ThemedView>
 
-        {/* One row for both controls — mode is the primary axis (what you
-            see), view is secondary (how you see it) and only applies to
-            Rescate, so it collapses to a single icon button instead of
-            competing with the segmented control for attention. */}
         <ThemedView style={styles.controlsRow}>
-          <ThemedView style={[styles.segmented, { backgroundColor: theme.backgroundElement }]}>
-            <Pressable
-              style={[styles.segmentedOption, mode === 'rescue' && { backgroundColor: theme.surface }]}
-              onPress={() => {
-                tapHaptic();
-                setMode('rescue');
-              }}
-              accessibilityRole="button"
-              accessibilityLabel="Rescate"
-            >
-              <ThemedText
-                type="small"
-                style={{ color: mode === 'rescue' ? theme.text : theme.textSecondary, fontWeight: '700' }}
-              >
-                Rescate
-              </ThemedText>
-            </Pressable>
-            <Pressable
-              style={[styles.segmentedOption, mode === 'adoption' && { backgroundColor: theme.surface }]}
-              onPress={() => {
-                tapHaptic();
-                setMode('adoption');
-              }}
-              accessibilityRole="button"
-              accessibilityLabel="Adopción"
-            >
-              <ThemedText
-                type="small"
-                style={{ color: mode === 'adoption' ? theme.text : theme.textSecondary, fontWeight: '700' }}
-              >
-                Adopción
-              </ThemedText>
-            </Pressable>
-          </ThemedView>
-
-          {!isAdoptionMode && (
-            <Pressable
-              style={[styles.viewIconButton, { backgroundColor: theme.backgroundElement }]}
-              onPress={() => {
-                tapHaptic();
-                setViewMode(viewMode === 'list' ? 'map' : 'list');
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={viewMode === 'list' ? 'Ver mapa' : 'Ver lista'}
-            >
-              <Ionicons name={viewMode === 'list' ? 'map-outline' : 'list-outline'} size={18} color={theme.text} />
-            </Pressable>
-          )}
-        </ThemedView>
-
-        {!isAdoptionMode && !showRealFlatList && (
-          <FilterChips statusFilter={statusFilter} setStatusFilter={setStatusFilter} />
-        )}
-
-        {isAdoptionMode && isVerifiedShelter && (
           <Pressable
+            style={[styles.viewIconButton, { backgroundColor: theme.backgroundElement }]}
             onPress={() => {
               tapHaptic();
-              router.push({ pathname: '/new-post', params: { type: 'adoption' } });
+              setViewMode(viewMode === 'list' ? 'map' : 'list');
             }}
-            style={({ pressed }) => [
-              styles.banner,
-              { backgroundColor: theme.accentSoft, borderColor: theme.accent, opacity: pressed ? 0.85 : 1 },
-            ]}
+            accessibilityRole="button"
+            accessibilityLabel={viewMode === 'list' ? 'Ver mapa' : 'Ver lista'}
           >
-            <Ionicons name="home-outline" size={18} color={theme.accent} />
-            <ThemedText type="small" style={{ color: theme.accent, flex: 1 }}>
-              ¿Sos refugio? Publicá un perro en adopción.
-            </ThemedText>
-            <Ionicons name="chevron-forward" size={16} color={theme.accent} />
+            <Ionicons name={viewMode === 'list' ? 'map-outline' : 'list-outline'} size={18} color={theme.text} />
           </Pressable>
-        )}
+        </ThemedView>
 
-        {isAdoptionMode || viewMode === 'list' ? (
-          fetchError && listData.length === 0 ? (
+        <FilterChips statusFilter={statusFilter} setStatusFilter={setStatusFilter} />
+
+        {viewMode === 'list' ? (
+          postsError && posts.length === 0 ? (
             <ThemedView style={styles.empty}>
               <Ionicons name="cloud-offline-outline" size={32} color={theme.textSecondary} />
               <ThemedText type="default" style={styles.emptyTitle}>
-                {isAdoptionMode ? 'No pudimos cargar los perros en adopción' : 'No pudimos cargar los avisos'}
+                No pudimos cargar los avisos
               </ThemedText>
               <ThemedText type="small" themeColor="textSecondary" style={styles.emptyText}>
                 Revisá tu conexión e intentá de nuevo.
               </ThemedText>
               <Button label="Reintentar" variant="secondary" onPress={reload} />
             </ThemedView>
-          ) : isLoading && listData.length === 0 ? (
+          ) : isLoadingPosts && posts.length === 0 ? (
             <ThemedView style={styles.listContent}>
               {[0, 1, 2].map(i => (
                 <PostCardSkeleton key={i} />
@@ -233,26 +147,21 @@ export default function PostsListScreen() {
           ) : (
             <ThemedView style={styles.listWrap}>
               <FlatList
-                data={listData}
+                data={posts}
                 keyExtractor={item => item.id}
-                renderItem={renderItem}
+                renderItem={({ item }) => <PostCard item={item} />}
                 onRefresh={handlePullRefresh}
                 refreshing={pullRefreshing}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={[styles.listContent, { paddingBottom: fadeHeight }]}
-                ListHeaderComponent={
-                  !isAdoptionMode ? <FilterChips statusFilter={statusFilter} setStatusFilter={setStatusFilter} /> : undefined
-                }
                 ListEmptyComponent={
                   <ThemedView style={styles.empty}>
                     <Ionicons name="paw-outline" size={32} color={theme.textSecondary} />
                     <ThemedText type="default" style={styles.emptyTitle}>
-                      {isAdoptionMode ? 'Todavía no hay perros en adopción' : 'Todavía no hay avisos por acá'}
+                      Todavía no hay avisos por acá
                     </ThemedText>
                     <ThemedText type="small" themeColor="textSecondary" style={styles.emptyText}>
-                      {isAdoptionMode
-                        ? 'Los refugios todavía no publicaron perros en adopción.'
-                        : '¿Viste un perro perdido, encontrado o callejero? Sé el primero en publicarlo.'}
+                      ¿Viste un perro perdido, encontrado o callejero? Sé el primero en publicarlo.
                     </ThemedText>
                   </ThemedView>
                 }
@@ -279,14 +188,12 @@ export default function PostsListScreen() {
   );
 }
 
-// A horizontal ScrollView rendered as a sibling of the main vertical
-// FlatList silently fails to mount at all on this screen (RN 0.86 / Expo
-// SDK 57, reproduced with plain ScrollView, react-native-gesture-handler's
-// ScrollView, and a horizontal FlatList alike) — some New Architecture
-// conflict between two scrollable siblings in the same flex-column
-// parent. Nesting it as the FlatList's ListHeaderComponent instead (a
-// descendant, not a sibling) works around it; see showRealFlatList in
-// PostsListScreen for where this does/doesn't apply.
+// Plain flex-wrap grid, not a scroll — every chip must be visible without
+// a hidden gesture (see docs/rediseno-v3.md and the simplificacion-feed
+// brief: the old horizontal-scroll row hid "Callejeros" off-screen).
+// 2x2 also sidesteps the New Architecture bug where a horizontal
+// ScrollView/FlatList mounted as a sibling of this screen's main FlatList
+// silently fails to render — a non-scrolling wrap has no such risk.
 function FilterChips({
   statusFilter,
   setStatusFilter,
@@ -296,36 +203,37 @@ function FilterChips({
 }) {
   const theme = useTheme();
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.filters}
-      style={styles.filtersScroll}
-    >
+    <ThemedView style={styles.filters}>
       {STATUS_FILTERS.map(f => {
         const active = statusFilter === f.value;
+        const toneColor = theme[f.tone];
+        const toneSoft = theme[`${f.tone}Soft` as const];
         return (
           <Pressable
             key={f.label}
             style={[
               styles.filterChip,
               {
-                backgroundColor: active ? theme.accent : theme.backgroundElement,
-                borderColor: active ? theme.accent : theme.border,
+                backgroundColor: active ? toneSoft : theme.backgroundElement,
+                borderColor: active ? toneColor : theme.border,
+                borderWidth: active ? 2 : 1,
               },
             ]}
             onPress={() => {
               tapHaptic();
               setStatusFilter(f.value);
             }}
+            accessibilityRole="button"
+            accessibilityLabel={f.label}
           >
-            <ThemedText type="small" style={{ color: active ? theme.onAccent : theme.text, fontWeight: '600' }}>
+            <Ionicons name={f.icon} size={18} color={active ? toneColor : theme.textSecondary} />
+            <ThemedText type="small" style={{ color: active ? toneColor : theme.text, fontWeight: '700' }}>
               {f.label}
             </ThemedText>
           </Pressable>
         );
       })}
-    </ScrollView>
+    </ThemedView>
   );
 }
 
@@ -440,60 +348,6 @@ function PostCard({ item }: { item: DogPostListItem }) {
   );
 }
 
-function AdoptionDogCard({ item }: { item: AdoptionDogListItem }) {
-  const theme = useTheme();
-  const [imageFailed, setImageFailed] = useState(false);
-  const [pressed, setPressed] = useState(false);
-  const hasPhoto = item.photo_urls.length > 0 && !imageFailed;
-  const secondaryParts = [item.shelter_name, item.breed || null].filter(Boolean);
-
-  return (
-    <Link href={{ pathname: '/adoption/[id]', params: { id: item.id } }} asChild>
-      {/* See the matching comment in PostCard: style must stay a plain
-          object here, never a `({pressed}) => ...` function, or Link
-          asChild's Slot silently drops the whole style on merge. */}
-      <Pressable
-        onPress={tapHaptic}
-        onPressIn={() => setPressed(true)}
-        onPressOut={() => setPressed(false)}
-        style={StyleSheet.flatten([
-          styles.card,
-          { backgroundColor: theme.surface, opacity: pressed ? 0.9 : 1 },
-        ])}
-      >
-        <ThemedView style={styles.photoWrap}>
-          {hasPhoto ? (
-            <Image
-              source={{ uri: item.photo_urls[0] }}
-              style={styles.photo}
-              contentFit="cover"
-              onError={() => setImageFailed(true)}
-            />
-          ) : (
-            <ThemedView style={[styles.photoFallback, { backgroundColor: theme.backgroundElement }]}>
-              <Ionicons name="paw" size={32} color={theme.textSecondary} />
-            </ThemedView>
-          )}
-          <ThemedView style={styles.photoBadge}>
-            <StatusBadge meta={ADOPTION_BADGE_META} variant="solid" size="sm" />
-          </ThemedView>
-        </ThemedView>
-        <ThemedView style={[styles.cardInfo, { backgroundColor: theme.surface, borderTopColor: theme.borderStrong }]}>
-          <ThemedText type="defaultBold" numberOfLines={1}>
-            {item.name || 'Perro en adopción'}
-          </ThemedText>
-          {secondaryParts.length > 0 && (
-            <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-              {secondaryParts.join(' · ')}
-            </ThemedText>
-          )}
-          {item.verification_status === 'approved' && <StatusBadge meta={VERIFIED_BADGE_META} size="sm" />}
-        </ThemedView>
-      </Pressable>
-    </Link>
-  );
-}
-
 function PostCardSkeleton() {
   const theme = useTheme();
   return (
@@ -530,19 +384,8 @@ const styles = StyleSheet.create({
   controlsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
+    justifyContent: 'flex-end',
     marginBottom: Spacing.three,
-  },
-  segmented: {
-    flexDirection: 'row',
-    alignSelf: 'flex-start',
-    borderRadius: Radius.full,
-    padding: 2,
-  },
-  segmentedOption: {
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one + 2,
-    borderRadius: Radius.full,
   },
   viewIconButton: {
     alignItems: 'center',
@@ -551,39 +394,27 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: Radius.full,
   },
-  // This is a horizontal FlatList, not ScrollView — a plain `<ScrollView
-  // horizontal>` here silently fails to render at all on this screen (RN
-  // 0.86 / Expo SDK 57, New Architecture), reproduced with both the core
-  // and react-native-gesture-handler implementations, cause unconfirmed.
-  // `flexGrow: 0` + explicit height keeps this row from collapsing to 0
-  // inside the flex-column parent, same fix as thumbRowScroll in
-  // new-post.tsx (which is a real ScrollView and still fine there).
-  filtersScroll: {
-    flexGrow: 0,
-    height: 40,
-    marginBottom: Spacing.three,
-  },
   filters: {
     flexDirection: 'row',
-    alignItems: 'center',
+    flexWrap: 'wrap',
     gap: Spacing.two,
+    marginBottom: Spacing.three,
   },
+  // 2 per row (48%), not 4 — icon + label at a >=44px tap target doesn't
+  // fit four across on a standard phone width without shrinking below a
+  // readable/tappable size. Wrapping to 2 rows keeps every chip visible
+  // with no scroll, same fixed-grid approach new-post.tsx already uses
+  // for its own 4-option type selector.
   filterChip: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 36,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    paddingHorizontal: Spacing.three,
-  },
-  banner: {
+    flexBasis: '48%',
+    flexGrow: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
-    borderWidth: 1,
+    justifyContent: 'center',
+    gap: Spacing.one + 2,
+    minHeight: 48,
     borderRadius: Radius.sm,
-    padding: Spacing.two + 2,
-    marginBottom: Spacing.three,
+    paddingHorizontal: Spacing.three,
   },
   listWrap: {
     flex: 1,
@@ -637,9 +468,6 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     borderTopWidth: 1,
   },
-  // Only PostCard needs the metadata split into a left text column and a
-  // right-aligned contact button — AdoptionDogCard keeps cardInfo's plain
-  // vertical stack (default flexDirection: 'column').
   cardInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',

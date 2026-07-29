@@ -70,11 +70,15 @@ export default function NewPostScreen() {
     if (profile?.id) fetchMyShelter(profile.id);
   }, [profile, fetchMyShelter]);
 
-  const typeOptions: FormType[] = isVerifiedShelter ? ['lost', 'found', 'stray', 'adoption'] : ['lost', 'found', 'stray'];
+  // "adoption" is never offered inline here anymore — the central
+  // "+Publicar" button (any user) only ever creates a dog_post. Publishing
+  // an adoption dog is reached exclusively from the Adopción tab's own
+  // "+" banner, which passes type=adoption explicitly (see
+  // simplificacion-feed brief, S5).
+  const isNewAdoptionEntry = !isEditMode && typeParam === 'adoption' && isVerifiedShelter;
+  const typeOptions: FormType[] = ['lost', 'found', 'stray'];
 
-  const [type, setType] = useState<FormType>(
-    isAdoptionEdit || (typeParam === 'adoption' && isVerifiedShelter) ? 'adoption' : 'lost'
-  );
+  const [type, setType] = useState<FormType>(isAdoptionEdit || isNewAdoptionEntry ? 'adoption' : 'lost');
   const [photos, setPhotos] = useState<PhotoSlot[]>([]);
   const [name, setName] = useState('');
   const [breed, setBreed] = useState('');
@@ -242,7 +246,7 @@ export default function NewPostScreen() {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            {!isAdoptionEdit && (
+            {!isAdoptionEdit && !isNewAdoptionEntry && (
               <>
                 <ThemedText type="caption" themeColor="textSecondary" style={styles.sectionLabel}>
                   Tipo de aviso
@@ -258,7 +262,6 @@ export default function NewPostScreen() {
                         key={value}
                         style={[
                           styles.typeOption,
-                          typeOptions.length > 3 && styles.typeOptionHalf,
                           {
                             backgroundColor: selected ? toneSoft : theme.backgroundElement,
                             borderColor: selected ? toneColor : theme.border,
@@ -508,12 +511,6 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.three,
     alignItems: 'center',
     gap: Spacing.one,
-  },
-  // 4 options (shelter accounts see "En adopción" too) lay out 2x2
-  // instead of squeezing into one row.
-  typeOptionHalf: {
-    flexBasis: '48%',
-    flexGrow: 1,
   },
   photoPicker: {
     height: 240,
