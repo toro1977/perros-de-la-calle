@@ -39,7 +39,7 @@ type StatusFilterOption = {
 // DOG_POST_TYPE_META so a type's color never has to be kept in sync in
 // two places; "Todos" isn't a DogPostType, so it's fully literal.
 const STATUS_FILTERS: StatusFilterOption[] = [
-  { value: undefined, label: 'Todos', icon: 'apps-outline', tone: 'accent' },
+  { value: undefined, label: 'Todos', icon: 'grid-outline', tone: 'accent' },
   { value: 'lost', label: 'Perdidos', icon: DOG_POST_TYPE_META.lost.icon, tone: DOG_POST_TYPE_META.lost.tone },
   { value: 'found', label: 'Encontrados', icon: DOG_POST_TYPE_META.found.icon, tone: DOG_POST_TYPE_META.found.tone },
   { value: 'stray', label: 'Callejeros', icon: DOG_POST_TYPE_META.stray.icon, tone: DOG_POST_TYPE_META.stray.tone },
@@ -110,9 +110,9 @@ export default function PostsListScreen() {
               Avisos cerca tuyo
             </ThemedText>
           </ThemedView>
-        </ThemedView>
-
-        <ThemedView style={styles.controlsRow}>
+          {/* Map/list toggle lives inline with the greeting now — it used
+              to sit alone on its own row below, which cost a whole extra
+              row of vertical space for one icon (feed-densidad brief). */}
           <Pressable
             style={[styles.viewIconButton, { backgroundColor: theme.backgroundElement }]}
             onPress={() => {
@@ -329,19 +329,27 @@ function PostCard({ item }: { item: DogPostListItem }) {
             style={({ pressed }) => [
               styles.contactButton,
               {
-                borderColor: contactState === 'error' ? theme.textSecondary : theme.accent,
-                opacity: pressed ? 0.6 : 1,
+                backgroundColor: contactState === 'error' ? theme.backgroundElement : theme.accent,
+                opacity: pressed ? 0.8 : 1,
               },
             ]}
           >
             {contactState === 'loading' ? (
-              <ActivityIndicator size="small" color={theme.accent} />
+              <ActivityIndicator size="small" color={theme.onAccent} />
             ) : (
-              <Ionicons
-                name={contactState === 'error' ? 'alert-outline' : 'logo-whatsapp'}
-                size={20}
-                color={contactState === 'error' ? theme.textSecondary : theme.accent}
-              />
+              <>
+                <Ionicons
+                  name={contactState === 'error' ? 'alert-outline' : 'logo-whatsapp'}
+                  size={16}
+                  color={contactState === 'error' ? theme.textSecondary : theme.onAccent}
+                />
+                <ThemedText
+                  type="caption"
+                  style={{ color: contactState === 'error' ? theme.textSecondary : theme.onAccent, fontWeight: '700' }}
+                >
+                  Contactar
+                </ThemedText>
+              </>
             )}
           </Pressable>
         </ThemedView>
@@ -375,19 +383,19 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
   },
   header: {
-    paddingVertical: Spacing.three,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.two,
   },
   headerText: {
-    gap: 4,
+    flex: 1,
+    gap: 0,
   },
   title: {
-    marginTop: 2,
-  },
-  controlsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    marginBottom: Spacing.three,
+    marginTop: 0,
+    lineHeight: 30,
   },
   viewIconButton: {
     alignItems: 'center',
@@ -399,24 +407,26 @@ const styles = StyleSheet.create({
   filters: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.two,
-    marginBottom: Spacing.three,
+    gap: Spacing.one + 3,
+    marginBottom: Spacing.two,
   },
   // 2 per row (48%), not 4 — icon + label at a >=44px tap target doesn't
   // fit four across on a standard phone width without shrinking below a
   // readable/tappable size. Wrapping to 2 rows keeps every chip visible
   // with no scroll, same fixed-grid approach new-post.tsx already uses
-  // for its own 4-option type selector.
+  // for its own 4-option type selector. Height/gap shrunk from the
+  // original 48px/8px per the feed-densidad brief — this row was costing
+  // more vertical space than the 2x2 grid actually needs.
   filterChip: {
     flexBasis: '48%',
     flexGrow: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.one + 2,
-    minHeight: 48,
+    gap: Spacing.one,
+    minHeight: 38,
     borderRadius: Radius.sm,
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: Spacing.two,
   },
   listWrap: {
     flex: 1,
@@ -480,13 +490,16 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  // Pill with icon + label, not a bare circle — this is the single most
+  // important action on the card (contacting about the dog), so it needs
+  // to read as a labeled button, not an ambiguous icon (feed-densidad brief).
   contactButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    width: 40,
-    height: 40,
+    gap: 6,
+    height: 36,
     borderRadius: Radius.full,
-    borderWidth: 1.5,
+    paddingHorizontal: Spacing.three,
   },
   empty: {
     alignItems: 'center',

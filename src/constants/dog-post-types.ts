@@ -8,7 +8,7 @@ export const DOG_POST_TYPE_META: Record<
   // "Encontrado" reads as ambiguous on its own — could mean "I found a
   // stray dog" or "I got my lost dog back" — so the hint spells out
   // which one this app means (the finder's report, not a resolution).
-  lost: { label: 'Perdido', hint: 'Es tu perro y no sabés dónde está.', icon: 'help-buoy-outline', tone: 'danger' },
+  lost: { label: 'Perdido', hint: 'Es tu perro y no sabés dónde está.', icon: 'search-outline', tone: 'danger' },
   found: {
     label: 'Encontrado',
     hint: 'Viste un perro que no es tuyo y parece perdido.',
