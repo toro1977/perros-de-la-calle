@@ -33,14 +33,16 @@ type StatusFilterOption = {
   tone: 'accent' | 'danger' | 'success' | 'warning';
 };
 
-// "Todos" isn't a DogPostType, so it's the only literal entry here — the
-// other three read their label/icon/tone straight off DOG_POST_TYPE_META
-// so a type's look never has to be kept in sync in two places.
+// Labels here are plural ("un aviso Perdido" vs. "el filtro Perdidos") so
+// they read as a category, not a single post — that's the only thing kept
+// local to this filter row. Icon/tone still come straight off
+// DOG_POST_TYPE_META so a type's color never has to be kept in sync in
+// two places; "Todos" isn't a DogPostType, so it's fully literal.
 const STATUS_FILTERS: StatusFilterOption[] = [
   { value: undefined, label: 'Todos', icon: 'apps-outline', tone: 'accent' },
-  { value: 'lost', label: DOG_POST_TYPE_META.lost.label, icon: DOG_POST_TYPE_META.lost.icon, tone: DOG_POST_TYPE_META.lost.tone },
-  { value: 'found', label: DOG_POST_TYPE_META.found.label, icon: DOG_POST_TYPE_META.found.icon, tone: DOG_POST_TYPE_META.found.tone },
-  { value: 'stray', label: DOG_POST_TYPE_META.stray.label, icon: DOG_POST_TYPE_META.stray.icon, tone: DOG_POST_TYPE_META.stray.tone },
+  { value: 'lost', label: 'Perdidos', icon: DOG_POST_TYPE_META.lost.icon, tone: DOG_POST_TYPE_META.lost.tone },
+  { value: 'found', label: 'Encontrados', icon: DOG_POST_TYPE_META.found.icon, tone: DOG_POST_TYPE_META.found.tone },
+  { value: 'stray', label: 'Callejeros', icon: DOG_POST_TYPE_META.stray.icon, tone: DOG_POST_TYPE_META.stray.tone },
 ];
 
 // zone_text is "Localidad, Partido, Provincia" (see reverse-geocode Edge
