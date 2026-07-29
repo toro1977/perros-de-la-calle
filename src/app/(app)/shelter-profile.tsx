@@ -25,6 +25,21 @@ const STATUS_BANNER_TEXT: Record<ShelterVerificationStatus, string> = {
   rejected: 'La solicitud fue rechazada. Revisá los datos y volvé a enviarla.',
 };
 
+// Snapshot of the last saved/loaded values, kept in the same shape as the
+// form fields (trimmed, contactWhatsapp still in its raw un-normalized
+// display form) so comparing against current state is a plain string
+// diff — no re-normalizing needed on either side.
+type FormSnapshot = {
+  shelterName: string;
+  locality: string;
+  contactWhatsapp: string;
+  socialLinks: string;
+  bio: string;
+  donationAlias: string;
+  donationCbu: string;
+  donationMpLink: string;
+};
+
 export default function ShelterProfileScreen() {
   const theme = useTheme();
   const profile = useAuthStore(s => s.profile);
@@ -46,6 +61,10 @@ export default function ShelterProfileScreen() {
   // fields above, so a prefill only happens once per row (see the render-time
   // adjustment below) instead of on every background refetch after focus.
   const [prefilledShelterId, setPrefilledShelterId] = useState<string | null>(null);
+  // null until there's something saved to be "clean" against — the very
+  // first request (no shelter row yet) has nothing to diff, so the button
+  // stays enabled the same way it always has for that case.
+  const [savedSnapshot, setSavedSnapshot] = useState<FormSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
@@ -78,11 +97,31 @@ export default function ShelterProfileScreen() {
     setDonationAlias(shelter.donation_alias ?? '');
     setDonationCbu(shelter.donation_cbu ?? '');
     setDonationMpLink(shelter.donation_mp_link ?? '');
+    setSavedSnapshot({
+      shelterName: shelter.shelter_name ?? '',
+      locality: shelter.locality ?? '',
+      contactWhatsapp: shelter.contact_whatsapp?.replace(/^\+549/, '') ?? '',
+      socialLinks: shelter.social_links ?? '',
+      bio: shelter.bio ?? '',
+      donationAlias: shelter.donation_alias ?? '',
+      donationCbu: shelter.donation_cbu ?? '',
+      donationMpLink: shelter.donation_mp_link ?? '',
+    });
   }
 
   const status = shelter?.verification_status as ShelterVerificationStatus | undefined;
   const isRequestMode = !shelter || status === 'rejected';
   const showDonationFields = !!shelter;
+  const isDirty =
+    !savedSnapshot ||
+    shelterName.trim() !== savedSnapshot.shelterName ||
+    locality.trim() !== savedSnapshot.locality ||
+    contactWhatsapp.trim() !== savedSnapshot.contactWhatsapp ||
+    socialLinks.trim() !== savedSnapshot.socialLinks ||
+    bio.trim() !== savedSnapshot.bio ||
+    donationAlias.trim() !== savedSnapshot.donationAlias ||
+    donationCbu.trim() !== savedSnapshot.donationCbu ||
+    donationMpLink.trim() !== savedSnapshot.donationMpLink;
 
   async function handleSubmit() {
     if (!profile) return;
@@ -116,6 +155,16 @@ export default function ShelterProfileScreen() {
         });
       }
       setSaved(true);
+      setSavedSnapshot({
+        shelterName: coreData.shelterName,
+        locality: coreData.locality,
+        contactWhatsapp: contactWhatsapp.trim(),
+        socialLinks: coreData.socialLinks,
+        bio: coreData.bio,
+        donationAlias: donationAlias.trim(),
+        donationCbu: donationCbu.trim(),
+        donationMpLink: donationMpLink.trim(),
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo guardar');
     }
@@ -268,6 +317,7 @@ export default function ShelterProfileScreen() {
                 label={isRequestMode ? 'Solicitar verificación' : 'Guardar cambios'}
                 onPress={handleSubmit}
                 loading={isLoading}
+                disabled={!isDirty}
               />
             </ThemedView>
           </ScrollView>
