@@ -1,0 +1,11 @@
+appId: com.perrosdelacalle.app
+---
+- launchApp
+- assertVisible: "Avisos cerca tuyo"
+- assertVisible: "Todos"
+- assertVisible: "Perdidos"
+- assertVisible: "Encontrados"
+- assertVisible: "Callejeros"
+- assertVisible: "Feed"
+- assertVisible: "Adopción"
+- assertVisible: "Perfil"

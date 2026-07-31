@@ -1,0 +1,7 @@
+appId: com.perrosdelacalle.app
+---
+- launchApp
+- tapOn: "Adopción"
+- assertVisible: "Perros de refugios buscando familia"
+- tapOn: "Feed"
+- assertVisible: "Avisos cerca tuyo"

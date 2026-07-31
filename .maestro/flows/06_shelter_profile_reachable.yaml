@@ -1,0 +1,12 @@
+appId: com.perrosdelacalle.app
+---
+- launchApp
+- tapOn: "Perfil"
+- assertVisible: "Perfil"
+# The entry row's copy changes with verification status (pending/approved/
+# rejected/none) — match any of them instead of hardcoding one state.
+# Maestro's text selector full-matches the element's text, so each
+# alternative needs its own .* wrapper to match as a substring.
+- tapOn: ".*Sos refugio.*|.*Verificación en revisión.*|.*Refugio verificado.*|.*Solicitud rechazada.*"
+- assertVisible: "Refugio / rescatista"
+- tapOn: "Volver"

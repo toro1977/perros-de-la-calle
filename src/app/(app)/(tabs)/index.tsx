@@ -287,6 +287,7 @@ function PostCard({ item }: { item: DogPostListItem }) {
           silently vanishes, no error. Track `pressed` by hand instead so the
           style prop is always a plain flattened object. */}
       <Pressable
+        testID="post-card"
         onPress={tapHaptic}
         onPressIn={() => setPressed(true)}
         onPressOut={() => setPressed(false)}

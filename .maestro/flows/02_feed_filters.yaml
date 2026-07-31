@@ -1,0 +1,9 @@
+appId: com.perrosdelacalle.app
+---
+- launchApp
+- assertVisible: "Avisos cerca tuyo"
+- tapOn: "Perdidos"
+- tapOn: "Encontrados"
+- tapOn: "Callejeros"
+- tapOn: "Todos"
+- assertVisible: "Avisos cerca tuyo"

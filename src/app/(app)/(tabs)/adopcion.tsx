@@ -159,6 +159,7 @@ function AdoptionDogCard({ item }: { item: AdoptionDogListItem }) {
           function, or Link asChild's Slot silently drops the whole style
           on merge. */}
       <Pressable
+        testID="adoption-card"
         onPress={tapHaptic}
         onPressIn={() => setPressed(true)}
         onPressOut={() => setPressed(false)}

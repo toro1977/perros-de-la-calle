@@ -1,0 +1,10 @@
+appId: com.perrosdelacalle.app
+---
+- launchApp
+- assertVisible:
+    id: "post-card"
+- tapOn:
+    id: "post-card"
+- assertVisible: "Volver"
+- tapOn: "Volver"
+- assertVisible: "Avisos cerca tuyo"

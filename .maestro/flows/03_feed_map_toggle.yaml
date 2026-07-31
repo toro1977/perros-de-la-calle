@@ -1,0 +1,8 @@
+appId: com.perrosdelacalle.app
+---
+- launchApp
+- assertVisible: "Ver mapa"
+- tapOn: "Ver mapa"
+- assertVisible: "Ver lista"
+- tapOn: "Ver lista"
+- assertVisible: "Ver mapa"
